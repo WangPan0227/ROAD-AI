@@ -8,7 +8,20 @@ export enum Tab {
   CaseLibrary = 'CaseLibrary',
   HistoryLibrary = 'HistoryLibrary',
   CaseGenerator = 'CaseGenerator',
-  DiseaseAtlas = 'DiseaseAtlas'
+  DiseaseAtlas = 'DiseaseAtlas',
+  SlopeTypicalCases = 'SlopeTypicalCases',
+  SlopeHistory = 'SlopeHistory',
+  SlopeMeasures = 'SlopeMeasures',
+  SlopeDiseaseAtlas = 'SlopeDiseaseAtlas',
+  SlopeClassicCases = 'SlopeClassicCases'
+}
+
+export type InfrastructureCategory = 'road' | 'bridge' | 'tunnel';
+export type InfrastructureSubCategory = 'roadbed' | 'slope' | 'bridge_deck' | 'bridge_pier' | 'tunnel_lining' | 'tunnel_portal';
+
+export interface InfrastructureState {
+  category: InfrastructureCategory;
+  subCategory: InfrastructureSubCategory;
 }
 
 export interface Indicator {
@@ -171,10 +184,34 @@ export interface SegmentResult extends RepairPrediction {
   measureDetails: MeasureUsage[]; 
 }
 
-export interface ProjectResult {
-  totalTime: number; 
-  totalCost: number;
-  criticalSegmentsCount: number;
-  segmentResults: SegmentResult[];
-  projectMeasureSummary: MeasureUsage[]; 
+export interface Damage {
+  level: number;
+  c_factor: number;
+  phi_factor: number;
+  crack_depth: number;
+  add_water_pressure: boolean;
+}
+
+export interface SlopeAnalysisConfig {
+  Geometry: {
+    H: number;
+    beta: number;
+  };
+  Geotech: {
+    soil_layers: {
+      top_elev: number;
+      gamma: number;
+      c: number;
+      phi: number;
+      desc: string;
+    }[];
+  };
+  Water: {
+    has_water: boolean;
+    y_gwt: number;
+  };
+  Seismic: {
+    k_h: number;
+  };
+  Damage?: Damage;
 }
