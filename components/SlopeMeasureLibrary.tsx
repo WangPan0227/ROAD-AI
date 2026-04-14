@@ -81,7 +81,7 @@ const SlopeMeasureLibrary: React.FC = () => {
   const syncEconomicsToEngine = (data: any[]) => {
       const ecoConfig: Record<string, [number, number]> = {};
       data.forEach(m => {
-          ecoConfig[m.backendKey] = [m.ecoParams.costNum, m.ecoParams.timeNum];
+          ecoConfig[m.backendKey] = [m.ecoParams?.costNum || 0, m.ecoParams?.timeNum || 0];
       });
       localStorage.setItem(STORAGE_KEY_ECONOMICS, JSON.stringify(ecoConfig));
   };
@@ -235,28 +235,28 @@ const SlopeMeasureLibrary: React.FC = () => {
                                     <span className="text-xs font-bold text-gray-500 uppercase mb-2">系统内部造价基数</span>
                                     <div className="flex items-end">
                                         {isEditing ? (
-                                            <input type="number" className="w-24 border-b-2 border-emerald-500 text-xl font-bold text-emerald-700 p-0 focus:ring-0 focus:border-emerald-600 mr-2 bg-transparent" value={selectedMeasure.ecoParams.costNum} onChange={e => handleEcoUpdate('costNum', parseFloat(e.target.value))} />
+                                            <input type="number" className="w-24 border-b-2 border-emerald-500 text-xl font-bold text-emerald-700 p-0 focus:ring-0 focus:border-emerald-600 mr-2 bg-transparent" value={selectedMeasure.ecoParams?.costNum || 0} onChange={e => handleEcoUpdate('costNum', parseFloat(e.target.value))} />
                                         ) : (
-                                            <span className="text-2xl font-mono font-bold text-emerald-700 mr-2">{selectedMeasure.ecoParams.costNum.toFixed(2)}</span>
+                                            <span className="text-2xl font-mono font-bold text-emerald-700 mr-2">{(selectedMeasure.ecoParams?.costNum || 0).toFixed(2)}</span>
                                         )}
-                                        <span className="text-sm text-gray-600">{selectedMeasure.ecoParams.costUnit} <span className="text-xs text-gray-400 ml-1">{selectedMeasure.ecoParams.costDesc}</span></span>
+                                        <span className="text-sm text-gray-600">{selectedMeasure.ecoParams?.costUnit} <span className="text-xs text-gray-400 ml-1">{selectedMeasure.ecoParams?.costDesc}</span></span>
                                     </div>
                                 </div>
                                 <div className="bg-white p-4 rounded-lg border border-emerald-200 shadow-sm flex flex-col justify-center">
                                     <span className="text-xs font-bold text-gray-500 uppercase mb-2">系统内部施工进度</span>
                                     <div className="flex items-end">
                                         {isEditing ? (
-                                            <input type="number" className="w-24 border-b-2 border-emerald-500 text-xl font-bold text-emerald-700 p-0 focus:ring-0 focus:border-emerald-600 mr-2 bg-transparent" value={selectedMeasure.ecoParams.timeNum} onChange={e => handleEcoUpdate('timeNum', parseFloat(e.target.value))} />
+                                            <input type="number" className="w-24 border-b-2 border-emerald-500 text-xl font-bold text-emerald-700 p-0 focus:ring-0 focus:border-emerald-600 mr-2 bg-transparent" value={selectedMeasure.ecoParams?.timeNum || 0} onChange={e => handleEcoUpdate('timeNum', parseFloat(e.target.value))} />
                                         ) : (
-                                            <span className="text-2xl font-mono font-bold text-emerald-700 mr-2">{selectedMeasure.ecoParams.timeNum}</span>
+                                            <span className="text-2xl font-mono font-bold text-emerald-700 mr-2">{selectedMeasure.ecoParams?.timeNum || 0}</span>
                                         )}
-                                        <span className="text-sm text-gray-600">{selectedMeasure.ecoParams.timeUnit} <span className="text-xs text-gray-400 ml-1">{selectedMeasure.ecoParams.timeDesc}</span></span>
+                                        <span className="text-sm text-gray-600">{selectedMeasure.ecoParams?.timeUnit} <span className="text-xs text-gray-400 ml-1">{selectedMeasure.ecoParams?.timeDesc}</span></span>
                                     </div>
                                 </div>
                             </div>
                             <div className="text-sm text-emerald-900/80 bg-white p-3 rounded-lg border border-emerald-100 shadow-inner">
                                 <span className="font-bold text-xs uppercase mb-1 block">模块联动计算逻辑：</span>
-                                {selectedMeasure.ecoParams.calcLogic}
+                                {selectedMeasure.ecoParams?.calcLogic}
                             </div>
                         </div>
                     </div>

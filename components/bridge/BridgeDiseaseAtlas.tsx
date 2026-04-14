@@ -102,10 +102,10 @@ const BridgeDiseaseAtlas: React.FC = () => {
 
       <div className="flex-1 overflow-y-auto p-8">
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 max-w-7xl mx-auto">
-            {matrix.map((item) => {
+            {matrix.map((item, idx) => {
                 const theme = colorMap[item.color] || colorMap.emerald;
                 return (
-                    <div key={item.id} className={`bg-white rounded-2xl shadow-sm border ${isEditing ? 'border-indigo-300 ring-2 ring-indigo-50' : theme.border} overflow-hidden hover:shadow-lg transition-all relative flex flex-col`}>
+                    <div key={item.id || `level-${idx}`} className={`bg-white rounded-2xl shadow-sm border ${isEditing ? 'border-indigo-300 ring-2 ring-indigo-50' : theme.border} overflow-hidden hover:shadow-lg transition-all relative flex flex-col`}>
                         <div className={`${theme.bg} px-6 py-4 flex justify-between items-center border-b ${theme.border}`}>
                             <h3 className={`text-lg font-black ${theme.text} flex items-center`}>
                                 <ShieldAlert className={`w-5 h-5 mr-2 ${theme.icon}`} /> {item.name}

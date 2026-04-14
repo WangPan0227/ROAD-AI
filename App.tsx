@@ -192,13 +192,19 @@ const App: React.FC = () => {
     <div className="flex h-screen bg-gray-100 font-sans text-gray-900 overflow-hidden">
       {/* Sidebar */}
       <div className="w-64 bg-slate-900 text-white flex flex-col shadow-xl z-30">
-        <div className="p-6 border-b border-slate-800 flex items-center">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center mr-3 shadow-lg shadow-blue-900/50">
-            <Activity className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold tracking-tight">RoadbedGuard</h1>
-            <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">AI Decision System</div>
+        <div className="flex items-center justify-center h-20 border-b border-slate-800 bg-slate-900/50">
+          <div className="flex items-center space-x-3">
+            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-2 rounded-xl shadow-lg shadow-blue-900/20">
+              <Layers className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex flex-col">
+              <h1 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-300 tracking-tight">
+                InfraGuard <span className="text-blue-400">AI</span>
+              </h1>
+              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-0.5">
+                结构智能仿真与加固模拟平台
+              </span>
+            </div>
           </div>
         </div>
         
