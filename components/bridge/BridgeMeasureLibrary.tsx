@@ -1,70 +1,57 @@
 import React, { useState, useEffect } from 'react';
 import { 
-    BookOpen, Calculator, Clock, Hammer, ShieldCheck, 
-    FileText, Settings, Layers, Anchor, Mountain, Edit3, Save, X 
+    BookOpen, Clock, Hammer, ShieldCheck, 
+    FileText, Settings, Layers, Zap, Edit3, Save, X, Activity, LifeBuoy
 } from 'lucide-react';
 
-const STORAGE_KEY_MEASURES = 'roadbedguard_slope_measures_v2';
-const STORAGE_KEY_ECONOMICS = 'roadbedguard_slope_economics'; // 供仿真模块读取的桥梁
+const STORAGE_KEY_MEASURES = 'roadbedguard_bridge_measures';
+const STORAGE_KEY_ECONOMICS = 'roadbedguard_bridge_economics'; 
 
 const DEFAULT_MEASURES = [
   {
-    id: 'cut', backendKey: 'cost_cut', name: '削方减载 (Cut & Unload)', category: '地形改造',
-    description: '通过削减边坡上部的岩土体，减小滑坡体的体积和重量，从而降低下滑力，是滑坡治理最直接、最经济的首选措施。',
-    standards: '《公路路基设计规范》(JTG D30-2015)\n《建筑边坡工程技术规范》(GB 50330-2013)',
-    materials: '无需特殊材料。依托挖掘机、推土机及自卸汽车等常规土石方机械。',
-    construction: '必须遵循“自上而下、分层开挖”的原则，严禁全面抽槽或掏底开挖。削坡后应及时跟进坡面防护（如植草、护面墙）。',
-    theory: '在极限平衡法（LEM）中，通过改变地表几何轮廓边界条件 [Geometry]，直接减小滑裂面以上的土体自重 (W)。从而减小下滑驱动力 T = W*sin(α) + k_h*W*cos(α)。',
+    id: 'cfrp_wrap', backendKey: 'cost_cfrp', name: '碳纤维 (CFRP) 环向包裹', category: '材料与约束增强',
+    description: '采用高强碳纤维布沿桥墩环向多层包裹，利用 CFRP 的高抗拉强度对核心混凝土形成强力侧向约束，显著提升桥墩的抗剪切能力与塑性变形延性。',
+    standards: '《公路桥梁抗震设计规范》(JTG/T 2231-01-2020)\n《混凝土结构加固设计规范》(GB 50367-2013)',
+    materials: '单向碳纤维布（抗拉强度≥3400MPa）、配套浸渍胶、底层树脂。',
+    construction: '基面打磨处理 -> 涂刷底胶 -> 修补找平 -> 涂刷浸渍胶 -> 环向多层粘贴 CFRP 布 -> 表面防护处理。',
+    theory: '在底层抗冲击引擎中：强行将【箍筋等效面积 Ast】放大 3 倍，并强制提升【延性系数 μd】至 8.0 以上，大幅提高名义抗剪承载力 Vn。',
     ecoParams: {
-        costNum: 35.0, costUnit: '元/m³', costDesc: '(包含开挖与短途弃方)',
-        timeNum: 500.0, timeUnit: 'm³/天', timeDesc: '(单工作面)',
-        calcLogic: '算法依据几何面积分差积分求得总削方体积 V。总造价 = V × 综合单价；总工期 = V / 施工进度。'
+        costNum: 800.0, costUnit: '元/m²', costDesc: '(包含打磨、材料与多层粘贴)',
+        timeNum: 50.0, timeUnit: 'm²/天', timeDesc: '(单作业面综合工效)',
+        calcLogic: '算法依据墩径(D)与假定加固高度计算包裹面积 S。总造价 = S × 综合单价；总工期 = S / 施工进度。'
     }
   },
   {
-    id: 'berm', backendKey: 'cost_berm', name: '坡角反压 (Toe Berm)', category: '地形改造',
-    description: '在边坡或滑坡体前缘（阻滑段）堆填土石方，增加抗滑段的重量，产生反向力矩，阻止滑体滑动。',
-    standards: '《滑坡防治工程设计与施工技术规范》(DZ/T 0219-2006)',
-    materials: '优先利用削坡产生的弃方（移挖作填），或采用透水性好、抗剪强度高的块石、碎石土。',
-    construction: '填筑前应清理地表植被及软弱层，设置良好的地下水排导系统（如盲沟），分层填筑并压实，压实度需满足规范要求。',
-    theory: '在算法中，改变坡脚前缘的几何边界。增加的土体自重 (W_berm) 作用于滑面倾角为负或较小的区段，直接增加抗滑力 R = W_berm*cos(α)*tan(φ) + c*L，同时抑制坡脚剪出。',
+    id: 'steel_jacket', backendKey: 'cost_jacket', name: '外包钢管混凝土套裙 (增大截面)', category: '截面与刚度增大',
+    description: '在原有墩柱外侧套入两半拼装的钢管，并在钢管与原混凝土之间灌注微膨胀高强自密实混凝土，形成钢管-混凝土-原墩柱的强力复合截面。',
+    standards: '《公路桥梁加固设计规范》(JTG/T J22-2008)',
+    materials: 'Q345/Q355钢板卷制套管、环向加劲肋、C50/C60微膨胀自密实混凝土、高强植筋锚栓。',
+    construction: '原墩表面凿毛并植筋 -> 吊装两半钢管并现场焊接 -> 底部封堵 -> 泵送高强自密实混凝土 -> 顶部封口防腐。',
+    theory: '在底层抗冲击引擎中：强行将【墩径 D】增加 0.4m，【核心面积 Ag】放大 1.5 倍，【等效强度 fc】提升 20%，提供绝对的刚度与抗力保障。',
     ecoParams: {
-        costNum: 55.0, costUnit: '元/m³', costDesc: '(包含借土、填筑与压实)',
-        timeNum: 300.0, timeUnit: 'm³/天', timeDesc: '(标准化作业)',
-        calcLogic: '算法设定压重平台高度 H_b 和宽度 B_b，计算填方体积 V。总造价 = V × 综合单价；总工期 = V / 施工进度。'
+        costNum: 15000.0, costUnit: '元/延米', costDesc: '(包含钢材、焊接、灌浆及防腐)',
+        timeNum: 2.0, timeUnit: '延米/天', timeDesc: '(单台吊车及施工作业组)',
+        calcLogic: '算法依据设定加固高度 h 计算。总造价 = h × 综合延米单价；总工期 = h / 施工进度。'
     }
   },
   {
-    id: 'micropile', backendKey: 'cost_pile', name: '微型群桩支护 (Micro-piles)', category: '结构支护',
-    description: '采用小孔径（通常 D<300mm）的钻孔灌注桩，内置钢管或钢筋笼，以群桩形式布置，抗弯刚度大，施工快。',
-    standards: '《公路路基支挡结构设计规范》(JTG/T 3334-2018)',
-    materials: '主筋常采用 Q345/Q390 高强无缝钢管（D=108~273mm，壁厚 6~12mm），孔内注浆采用 M30/M40 纯水泥浆。',
-    construction: '钻孔 -> 下放钢管 -> 清孔 -> 底部压力注浆 -> 顶部浇筑连系梁。设备小巧，适合应急抢险及狭窄空间。',
-    theory: '在仿真矩阵中，程序根据最危险滑面深度提取单桩悬臂长度。计算钢管的抗弯截面模量，转化为等效集中抗滑力 (R_prov)，补偿剩余下滑力缺口。',
+    id: 'flexible_fender', backendKey: 'cost_fender', name: '复合材料柔性防撞套箱', category: '能量隔离与耗散',
+    description: '在容易遭受船舶或车辆直接撞击的墩柱标高处，安装由纤维增强复合材料(FRP)外壳与内部高耗能闭孔泡沫/阻尼元件组成的防撞箱，不改变原桥墩结构。',
+    standards: '《公路桥梁抗撞设计规范》(JTG/T 3360-02-2020)',
+    materials: 'FRP玻璃钢外壳、闭孔聚氨酯吸能泡沫、内部波纹钢耗能板、高强不锈钢连接件。',
+    construction: '工厂预制模块化防撞箱 -> 现场水上/陆地吊装 -> 螺栓或钢拉杆环向锁紧抱死 -> 缝隙密封。',
+    theory: '在底层抗冲击引擎中：不改变桥墩本体任何力学参数，而是“以柔克刚”，强制将外部输入的【撞击动能 Ek】削减 60%（即 Ek × 0.4），直接降低损伤需求。',
     ecoParams: {
-        costNum: 550.0, costUnit: '元/m', costDesc: '(钻孔、下管及注浆综合单价)',
-        timeNum: 40.0, timeUnit: 'm/天', timeDesc: '(单台钻机效率)',
-        calcLogic: '算法穷举桩长(L)与间距(s)。造价 = (总宽/s+1) × L × 单价；工期 = 桩总长 / 施工进度。'
-    }
-  },
-  {
-    id: 'anchor', backendKey: 'cost_anchor', name: '预应力锚索支护 (Ground Anchors)', category: '结构支护',
-    description: '将受拉构件一端锚固在稳定地层中，另一端通过框架梁或锚墩张拉施加预应力，主动加固边坡。',
-    standards: '《岩土锚杆与喷射混凝土支护工程技术规范》(GB 50086-2015)',
-    materials: '1860级高强低松弛钢绞线（通常 3~6 束），M40 水泥砂浆，OVM 锚具，高强度混凝土框架梁。',
-    construction: '钻孔 -> 编索与下索 -> 一次常压注浆 -> 二次高压劈裂注浆 -> 浇筑地梁 -> 张拉锁定 -> 封锚。',
-    theory: '仿真模型计算地层极限握裹力 (τ_bond) 和钢绞线抗拉强度，取两者较小值得到设计轴力 T_design。向下倾斜的锚索不仅提供切向抗滑力，更增加滑面法向正应力以提升摩擦力。',
-    ecoParams: {
-        costNum: 220.0, costUnit: '元/m', costDesc: '(含钻孔、钢绞线、注浆与锚具)',
-        timeNum: 60.0, timeUnit: 'm/天', timeDesc: '(单台钻机效率)',
-        calcLogic: '算法穷举锚固段长度(L_b)与间距。造价 = (总宽/s+1) × (L_b+自由段) × 单价；工期 = 总长 / 施工进度。'
+        costNum: 450000.0, costUnit: '元/套', costDesc: '(定制模块化成品与现场安装费)',
+        timeNum: 0.5, timeUnit: '套/天', timeDesc: '(模块化快速拼装)',
+        calcLogic: '算法按双柱墩需配置 2 套计算。总造价 = 2 × 单套造价；总工期 = 2 / 施工进度。'
     }
   }
 ];
 
-const SlopeMeasureLibrary: React.FC = () => {
+const BridgeMeasureLibrary: React.FC = () => {
   const [measures, setMeasures] = useState<any[]>([]);
-  const [selectedId, setSelectedId] = useState<string>('cut');
+  const [selectedId, setSelectedId] = useState<string>('cfrp_wrap');
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
@@ -73,7 +60,6 @@ const SlopeMeasureLibrary: React.FC = () => {
       setMeasures(JSON.parse(saved));
     } else {
       setMeasures(DEFAULT_MEASURES);
-      // 初始化时就同步经济参数到桥梁
       syncEconomicsToEngine(DEFAULT_MEASURES);
     }
   }, []);
@@ -98,16 +84,16 @@ const SlopeMeasureLibrary: React.FC = () => {
 
   const handleSave = () => {
     localStorage.setItem(STORAGE_KEY_MEASURES, JSON.stringify(measures));
-    syncEconomicsToEngine(measures); // 更新并分发经济参数
+    syncEconomicsToEngine(measures); 
     setIsEditing(false);
-    alert('参数更新成功！系统已自动同步新单价与工效至底层仿真计算引擎。');
+    alert('桥梁防撞加固参数更新成功！新单价与工效已同步至底层推演引擎。');
   };
 
   const getIcon = (id: string) => {
-      if (id === 'cut') return <Mountain className="w-5 h-5" />;
-      if (id === 'berm') return <Layers className="w-5 h-5" />;
-      if (id === 'micropile') return <ShieldCheck className="w-5 h-5" />;
-      return <Anchor className="w-5 h-5" />;
+      if (id === 'cfrp_wrap') return <Layers className="w-5 h-5" />;
+      if (id === 'steel_jacket') return <ShieldCheck className="w-5 h-5" />;
+      if (id === 'flexible_fender') return <LifeBuoy className="w-5 h-5" />;
+      return <Activity className="w-5 h-5" />;
   };
 
   return (
@@ -117,9 +103,9 @@ const SlopeMeasureLibrary: React.FC = () => {
         <div className="p-5 border-b border-gray-200 bg-white sticky top-0">
           <h2 className="text-xl font-bold text-gray-800 flex items-center mb-1">
             <Hammer className="w-6 h-6 mr-2 text-indigo-600" />
-            边坡加固措施库
+            桥梁加固与防撞措施库
           </h2>
-          <p className="text-xs text-gray-500">结构理论、施工参数与经济计算基准</p>
+          <p className="text-xs text-gray-500">抗冲击工艺与造价基准中心</p>
         </div>
         
         <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50">
@@ -154,7 +140,6 @@ const SlopeMeasureLibrary: React.FC = () => {
       <div className="flex-1 flex flex-col h-full overflow-y-auto bg-gray-50 p-6">
          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             
-            {/* Header */}
             <div className="bg-slate-800 px-8 py-6 relative">
                 <div className="absolute top-6 right-8">
                     {isEditing ? (
@@ -221,8 +206,8 @@ const SlopeMeasureLibrary: React.FC = () => {
 
                 <div>
                     <h2 className="text-lg font-black text-gray-800 flex items-center mb-4">
-                        <FileText className="w-5 h-5 mr-2 text-indigo-600" />
-                        系统仿真算法计算参数
+                        <Zap className="w-5 h-5 mr-2 text-indigo-600" />
+                        底层动力学引擎联动机制
                     </h2>
                     <div className="space-y-4">
                         <div className="border border-emerald-100 bg-emerald-50/30 rounded-xl p-5 relative overflow-hidden">
@@ -230,6 +215,9 @@ const SlopeMeasureLibrary: React.FC = () => {
                             <h3 className="text-sm font-bold text-emerald-800 flex items-center mb-3">
                                 <Clock className="w-4 h-4 mr-2" /> 经济与工期计算基准 (Economics Config)
                             </h3>
+                            
+                            <p className="text-xs text-gray-600 mb-4">{selectedMeasure.theory}</p>
+                            
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                 <div className="bg-white p-4 rounded-lg border border-emerald-200 shadow-sm flex flex-col justify-center">
                                     <span className="text-xs font-bold text-gray-500 uppercase mb-2">系统内部造价基数</span>
@@ -237,7 +225,7 @@ const SlopeMeasureLibrary: React.FC = () => {
                                         {isEditing ? (
                                             <input type="number" className="w-24 border-b-2 border-emerald-500 text-xl font-bold text-emerald-700 p-0 focus:ring-0 focus:border-emerald-600 mr-2 bg-transparent" value={selectedMeasure.ecoParams.costNum} onChange={e => handleEcoUpdate('costNum', parseFloat(e.target.value))} />
                                         ) : (
-                                            <span className="text-2xl font-mono font-bold text-emerald-700 mr-2">{selectedMeasure.ecoParams.costNum.toFixed(2)}</span>
+                                            <span className="text-2xl font-mono font-bold text-emerald-700 mr-2">{selectedMeasure.ecoParams.costNum.toLocaleString()}</span>
                                         )}
                                         <span className="text-sm text-gray-600">{selectedMeasure.ecoParams.costUnit} <span className="text-xs text-gray-400 ml-1">{selectedMeasure.ecoParams.costDesc}</span></span>
                                     </div>
@@ -246,7 +234,7 @@ const SlopeMeasureLibrary: React.FC = () => {
                                     <span className="text-xs font-bold text-gray-500 uppercase mb-2">系统内部施工进度</span>
                                     <div className="flex items-end">
                                         {isEditing ? (
-                                            <input type="number" className="w-24 border-b-2 border-emerald-500 text-xl font-bold text-emerald-700 p-0 focus:ring-0 focus:border-emerald-600 mr-2 bg-transparent" value={selectedMeasure.ecoParams.timeNum} onChange={e => handleEcoUpdate('timeNum', parseFloat(e.target.value))} />
+                                            <input type="number" step="0.1" className="w-24 border-b-2 border-emerald-500 text-xl font-bold text-emerald-700 p-0 focus:ring-0 focus:border-emerald-600 mr-2 bg-transparent" value={selectedMeasure.ecoParams.timeNum} onChange={e => handleEcoUpdate('timeNum', parseFloat(e.target.value))} />
                                         ) : (
                                             <span className="text-2xl font-mono font-bold text-emerald-700 mr-2">{selectedMeasure.ecoParams.timeNum}</span>
                                         )}
@@ -255,7 +243,7 @@ const SlopeMeasureLibrary: React.FC = () => {
                                 </div>
                             </div>
                             <div className="text-sm text-emerald-900/80 bg-white p-3 rounded-lg border border-emerald-100 shadow-inner">
-                                <span className="font-bold text-xs uppercase mb-1 block">模块联动计算逻辑：</span>
+                                <span className="font-bold text-xs uppercase mb-1 block">模块经济指标输出逻辑：</span>
                                 {selectedMeasure.ecoParams.calcLogic}
                             </div>
                         </div>
@@ -269,4 +257,4 @@ const SlopeMeasureLibrary: React.FC = () => {
   );
 };
 
-export default SlopeMeasureLibrary;
+export default BridgeMeasureLibrary;

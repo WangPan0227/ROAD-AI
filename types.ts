@@ -13,7 +13,19 @@ export enum Tab {
   SlopeHistory = 'SlopeHistory',
   SlopeMeasures = 'SlopeMeasures',
   SlopeDiseaseAtlas = 'SlopeDiseaseAtlas',
-  SlopeClassicCases = 'SlopeClassicCases'
+  SlopeClassicCases = 'SlopeClassicCases',
+  RoadbedAnalysis = 'RoadbedAnalysis',
+  RoadbedTypicalCases = 'RoadbedTypicalCases',
+  RoadbedHistory = 'RoadbedHistory',
+  RoadbedMeasures = 'RoadbedMeasures',
+  RoadbedDiseaseAtlas = 'RoadbedDiseaseAtlas',
+  RoadbedClassicCases = 'RoadbedClassicCases',
+  BridgeAnalysis = 'BridgeAnalysis',
+  BridgeTypicalCases = 'BridgeTypicalCases',
+  BridgeHistory = 'BridgeHistory',
+  BridgeMeasures = 'BridgeMeasures',
+  BridgeDiseaseAtlas = 'BridgeDiseaseAtlas',
+  BridgeClassicCases = 'BridgeClassicCases'
 }
 
 export type InfrastructureCategory = 'road' | 'bridge' | 'tunnel';

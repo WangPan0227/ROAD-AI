@@ -117,7 +117,7 @@ const SlopeDiseaseAtlas: React.FC = () => {
       <div className="flex-1 overflow-y-auto p-8">
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 max-w-7xl mx-auto">
             {matrix.map((item) => {
-                const theme = colorMap[item.color];
+                const theme = colorMap[item.color] || colorMap.emerald;
                 return (
                     <div key={item.id} className={`bg-white rounded-2xl shadow-sm border ${isEditing ? 'border-indigo-300 ring-2 ring-indigo-50' : theme.border} overflow-hidden hover:shadow-lg transition-all duration-300 relative group flex flex-col`}>
                         

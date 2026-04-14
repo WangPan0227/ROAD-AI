@@ -20,6 +20,18 @@ import SlopeHistoryLibrary from './components/SlopeHistoryLibrary';
 import SlopeMeasureLibrary from './components/SlopeMeasureLibrary';
 import SlopeDiseaseAtlas from './components/SlopeDiseaseAtlas';
 import SlopeClassicCases from './components/SlopeClassicCases';
+import RoadbedAnalysis from './components/roadbed/RoadbedAnalysis';
+import RoadbedTypicalCases from './components/roadbed/RoadbedTypicalCases';
+import RoadbedHistoryLibrary from './components/roadbed/RoadbedHistoryLibrary';
+import RoadbedMeasureLibrary from './components/roadbed/RoadbedMeasureLibrary';
+import RoadbedDiseaseAtlas from './components/roadbed/RoadbedDiseaseAtlas';
+import RoadbedClassicCases from './components/roadbed/RoadbedClassicCases';
+import BridgeAnalysis from './components/bridge/BridgeAnalysis';
+import BridgeTypicalCases from './components/bridge/BridgeTypicalCases';
+import BridgeHistoryLibrary from './components/bridge/BridgeHistoryLibrary';
+import BridgeMeasureLibrary from './components/bridge/BridgeMeasureLibrary';
+import BridgeDiseaseAtlas from './components/bridge/BridgeDiseaseAtlas';
+import BridgeClassicCases from './components/bridge/BridgeClassicCases';
 import { Tab, InfrastructureState, InfrastructureCategory, InfrastructureSubCategory } from './types';
 
 // Placeholder components for those not fully implemented in this turn
@@ -32,28 +44,67 @@ const Placeholder: React.FC<{title: string}> = ({title}) => (
 );
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<Tab>(Tab.DecisionModel);
   const [activeInfrastructure, setActiveInfrastructure] = useState<InfrastructureState>({
     category: 'road',
     subCategory: 'roadbed'
   });
+  
+  // Maintain independent active tabs for each sub-category
+  const [activeTabs, setActiveTabs] = useState<Record<string, Tab>>({
+    roadbed: Tab.RoadbedAnalysis,
+    slope: Tab.DecisionModel,
+    bridge_pier: Tab.BridgeAnalysis
+  });
 
-  // Reset activeTab when subCategory changes to prevent staying on a non-existent tab
-  useEffect(() => {
-    setActiveTab(Tab.DecisionModel);
-  }, [activeInfrastructure.subCategory]);
+  const currentTab = activeTabs[activeInfrastructure.subCategory] || Tab.DecisionModel;
+
+  const handleTabChange = (tab: Tab) => {
+    setActiveTabs(prev => ({
+      ...prev,
+      [activeInfrastructure.subCategory]: tab
+    }));
+  };
 
   const renderContent = () => {
     const commonProps = { activeInfrastructure };
 
-    switch (activeTab) {
+    switch (currentTab) {
       case Tab.DecisionModel:
         if (activeInfrastructure.category === 'road') {
           return activeInfrastructure.subCategory === 'roadbed' 
-            ? <SmartDecisionModel {...commonProps} /> 
+            ? <RoadbedAnalysis /> 
             : <SlopeAnalysis {...commonProps} />;
         }
         return <Placeholder title={`${activeInfrastructure.category} - ${activeInfrastructure.subCategory}`} />;
+      
+      // Roadbed Specific Modules
+      case Tab.RoadbedAnalysis:
+        return <RoadbedAnalysis />;
+      case Tab.RoadbedTypicalCases:
+        return <RoadbedTypicalCases />;
+      case Tab.RoadbedHistory:
+        return <RoadbedHistoryLibrary />;
+      case Tab.RoadbedMeasures:
+        return <RoadbedMeasureLibrary />;
+      case Tab.RoadbedDiseaseAtlas:
+        return <RoadbedDiseaseAtlas />;
+      case Tab.RoadbedClassicCases:
+        return <RoadbedClassicCases />;
+
+      // Bridge Specific Modules
+      case Tab.BridgeAnalysis:
+        return <BridgeAnalysis />;
+      case Tab.BridgeTypicalCases:
+        return <BridgeTypicalCases />;
+      case Tab.BridgeHistory:
+        return <BridgeHistoryLibrary />;
+      case Tab.BridgeMeasures:
+        return <BridgeMeasureLibrary />;
+      case Tab.BridgeDiseaseAtlas:
+        return <BridgeDiseaseAtlas />;
+      case Tab.BridgeClassicCases:
+        return <BridgeClassicCases />;
+
       case Tab.HistoryLibrary:
         return <HistoryLibrary {...commonProps} />;
       case Tab.CaseGenerator:
@@ -82,18 +133,17 @@ const App: React.FC = () => {
         return <SlopeClassicCases />;
         
       default:
-        return <SmartDecisionModel {...commonProps} />;
+        return activeInfrastructure.subCategory === 'roadbed' ? <RoadbedAnalysis /> : <SlopeAnalysis {...commonProps} />;
     }
   };
 
   // Menu Configurations
   const roadbedMenu = [
-    { id: Tab.HistoryLibrary, label: '历史训练库', icon: Database },
-    { id: Tab.CaseGenerator, label: '案例生成库', icon: FileText },
-    { id: Tab.Indicators, label: '强度指标库', icon: BarChart2 },
-    { id: Tab.Diseases, label: '病害图谱', icon: Layers },
-    { id: Tab.MeasureLibrary, label: '加固措施库', icon: PenTool },
-    { id: Tab.CaseLibrary, label: '经典案例库', icon: BookOpen },
+    { id: Tab.RoadbedTypicalCases, label: '典型案例库', icon: ClipboardList },
+    { id: Tab.RoadbedHistory, label: '历史训练库', icon: History },
+    { id: Tab.RoadbedMeasures, label: '加固措施库', icon: ShieldCheck },
+    { id: Tab.RoadbedDiseaseAtlas, label: '病害等级图谱', icon: Microscope },
+    { id: Tab.RoadbedClassicCases, label: '经典案例库', icon: BookOpen },
   ];
 
   const slopeMenu = [
@@ -104,7 +154,19 @@ const App: React.FC = () => {
     { id: Tab.SlopeClassicCases, label: '经典案例库', icon: BookOpen },
   ];
 
-  const activeMenu = activeInfrastructure.subCategory === 'roadbed' ? roadbedMenu : (activeInfrastructure.subCategory === 'slope' ? slopeMenu : []);
+  const bridgeMenu = [
+    { id: Tab.BridgeTypicalCases, label: '典型案例库', icon: ClipboardList },
+    { id: Tab.BridgeHistory, label: '历史训练库', icon: History },
+    { id: Tab.BridgeMeasures, label: '加固措施库', icon: ShieldCheck },
+    { id: Tab.BridgeDiseaseAtlas, label: '病害等级图谱', icon: Microscope },
+    { id: Tab.BridgeClassicCases, label: '经典案例库', icon: BookOpen },
+  ];
+
+  const activeMenu = activeInfrastructure.subCategory === 'roadbed' 
+    ? roadbedMenu 
+    : (activeInfrastructure.subCategory === 'slope' 
+        ? slopeMenu 
+        : (activeInfrastructure.subCategory === 'bridge_pier' ? bridgeMenu : []));
 
   const categories: { id: InfrastructureCategory; name: string; icon: any }[] = [
     { id: 'road', name: '道路工程', icon: Map },
@@ -118,7 +180,6 @@ const App: React.FC = () => {
       { id: 'slope', name: '边坡模块', icon: Mountain },
     ],
     bridge: [
-      { id: 'bridge_deck', name: '桥面系', icon: Layers },
       { id: 'bridge_pier', name: '下部结构', icon: Layers },
     ],
     tunnel: [
@@ -145,8 +206,16 @@ const App: React.FC = () => {
           <div className="text-xs font-bold text-slate-500 uppercase px-3 mb-2 mt-2">Core Modules</div>
           
           <button 
-            onClick={() => setActiveTab(Tab.DecisionModel)}
-            className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === Tab.DecisionModel ? 'bg-blue-600 text-white shadow-md shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+            onClick={() => {
+              if (activeInfrastructure.subCategory === 'roadbed') handleTabChange(Tab.RoadbedAnalysis);
+              else if (activeInfrastructure.subCategory === 'bridge_pier') handleTabChange(Tab.BridgeAnalysis);
+              else handleTabChange(Tab.DecisionModel);
+            }}
+            className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+              (currentTab === Tab.DecisionModel || currentTab === Tab.RoadbedAnalysis || currentTab === Tab.BridgeAnalysis) 
+              ? 'bg-blue-600 text-white shadow-md shadow-blue-900/20' 
+              : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+            }`}
           >
             <Activity className="w-4 h-4 mr-3" />
             仿真模拟分析
@@ -157,8 +226,8 @@ const App: React.FC = () => {
           {activeMenu.map((item) => (
             <button 
               key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === item.id ? 'bg-blue-600 text-white shadow-md shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+              onClick={() => handleTabChange(item.id)}
+              className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${currentTab === item.id ? 'bg-blue-600 text-white shadow-md shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
             >
               <item.icon className="w-4 h-4 mr-3" />
               {item.label}
@@ -167,8 +236,8 @@ const App: React.FC = () => {
 
           <div className="mt-auto pt-6 border-t border-slate-800">
              <button 
-                onClick={() => setActiveTab(Tab.Chatbot)}
-                className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === Tab.Chatbot ? 'bg-blue-600 text-white shadow-md shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                onClick={() => handleTabChange(Tab.Chatbot)}
+                className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${currentTab === Tab.Chatbot ? 'bg-blue-600 text-white shadow-md shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
               >
                 <MessageSquare className="w-4 h-4 mr-3" />
                 智能问答助手
