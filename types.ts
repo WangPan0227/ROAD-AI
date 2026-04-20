@@ -25,7 +25,13 @@ export enum Tab {
   BridgeHistory = 'BridgeHistory',
   BridgeMeasures = 'BridgeMeasures',
   BridgeDiseaseAtlas = 'BridgeDiseaseAtlas',
-  BridgeClassicCases = 'BridgeClassicCases'
+  BridgeClassicCases = 'BridgeClassicCases',
+  TunnelAnalysis = 'TunnelAnalysis',
+  TunnelTypicalCases = 'TunnelTypicalCases',
+  TunnelHistory = 'TunnelHistory',
+  TunnelMeasures = 'TunnelMeasures',
+  TunnelDiseaseAtlas = 'TunnelDiseaseAtlas',
+  TunnelClassicCases = 'TunnelClassicCases'
 }
 
 export type InfrastructureCategory = 'road' | 'bridge' | 'tunnel';

@@ -32,6 +32,12 @@ import BridgeHistoryLibrary from './components/bridge/BridgeHistoryLibrary';
 import BridgeMeasureLibrary from './components/bridge/BridgeMeasureLibrary';
 import BridgeDiseaseAtlas from './components/bridge/BridgeDiseaseAtlas';
 import BridgeClassicCases from './components/bridge/BridgeClassicCases';
+import TunnelAnalysis from './components/tunnel/TunnelAnalysis';
+import TunnelTypicalCases from './components/tunnel/TunnelTypicalCases';
+import TunnelHistoryLibrary from './components/tunnel/TunnelHistoryLibrary';
+import TunnelMeasureLibrary from './components/tunnel/TunnelMeasureLibrary';
+import TunnelDiseaseAtlas from './components/tunnel/TunnelDiseaseAtlas';
+import TunnelClassicCases from './components/tunnel/TunnelClassicCases';
 import { Tab, InfrastructureState, InfrastructureCategory, InfrastructureSubCategory } from './types';
 
 // Placeholder components for those not fully implemented in this turn
@@ -53,7 +59,9 @@ const App: React.FC = () => {
   const [activeTabs, setActiveTabs] = useState<Record<string, Tab>>({
     roadbed: Tab.RoadbedAnalysis,
     slope: Tab.DecisionModel,
-    bridge_pier: Tab.BridgeAnalysis
+    bridge_pier: Tab.BridgeAnalysis,
+    tunnel_lining: Tab.TunnelAnalysis,
+    tunnel_portal: Tab.TunnelAnalysis
   });
 
   const currentTab = activeTabs[activeInfrastructure.subCategory] || Tab.DecisionModel;
@@ -104,6 +112,20 @@ const App: React.FC = () => {
         return <BridgeDiseaseAtlas />;
       case Tab.BridgeClassicCases:
         return <BridgeClassicCases />;
+
+      // Tunnel Specific Modules
+      case Tab.TunnelAnalysis:
+        return <TunnelAnalysis />;
+      case Tab.TunnelTypicalCases:
+        return <TunnelTypicalCases />;
+      case Tab.TunnelHistory:
+        return <TunnelHistoryLibrary />;
+      case Tab.TunnelMeasures:
+        return <TunnelMeasureLibrary />;
+      case Tab.TunnelDiseaseAtlas:
+        return <TunnelDiseaseAtlas />;
+      case Tab.TunnelClassicCases:
+        return <TunnelClassicCases />;
 
       case Tab.HistoryLibrary:
         return <HistoryLibrary {...commonProps} />;
@@ -162,11 +184,20 @@ const App: React.FC = () => {
     { id: Tab.BridgeClassicCases, label: '经典案例库', icon: BookOpen },
   ];
 
+  const tunnelMenu = [
+    { id: Tab.TunnelTypicalCases, label: '典型案例库', icon: ClipboardList },
+    { id: Tab.TunnelHistory, label: '历史训练库', icon: History },
+    { id: Tab.TunnelMeasures, label: '加固措施库', icon: ShieldCheck },
+    { id: Tab.TunnelDiseaseAtlas, label: '病害等级图谱', icon: Microscope },
+    { id: Tab.TunnelClassicCases, label: '经典案例库', icon: BookOpen },
+  ];
+
   const activeMenu = activeInfrastructure.subCategory === 'roadbed' 
     ? roadbedMenu 
     : (activeInfrastructure.subCategory === 'slope' 
         ? slopeMenu 
-        : (activeInfrastructure.subCategory === 'bridge_pier' ? bridgeMenu : []));
+        : (activeInfrastructure.subCategory === 'bridge_pier' ? bridgeMenu : 
+           (['tunnel_lining', 'tunnel_portal'].includes(activeInfrastructure.subCategory) ? tunnelMenu : [])));
 
   const categories: { id: InfrastructureCategory; name: string; icon: any }[] = [
     { id: 'road', name: '道路工程', icon: Map },
@@ -215,10 +246,11 @@ const App: React.FC = () => {
             onClick={() => {
               if (activeInfrastructure.subCategory === 'roadbed') handleTabChange(Tab.RoadbedAnalysis);
               else if (activeInfrastructure.subCategory === 'bridge_pier') handleTabChange(Tab.BridgeAnalysis);
+              else if (['tunnel_lining', 'tunnel_portal'].includes(activeInfrastructure.subCategory)) handleTabChange(Tab.TunnelAnalysis);
               else handleTabChange(Tab.DecisionModel);
             }}
             className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-              (currentTab === Tab.DecisionModel || currentTab === Tab.RoadbedAnalysis || currentTab === Tab.BridgeAnalysis) 
+              (currentTab === Tab.DecisionModel || currentTab === Tab.RoadbedAnalysis || currentTab === Tab.BridgeAnalysis || currentTab === Tab.TunnelAnalysis) 
               ? 'bg-blue-600 text-white shadow-md shadow-blue-900/20' 
               : 'text-slate-400 hover:bg-slate-800 hover:text-white'
             }`}
