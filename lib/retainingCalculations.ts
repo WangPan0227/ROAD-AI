@@ -53,7 +53,7 @@ export const calculate_retaining_wall = (params: RetainingParams): RetainingResu
   // 4. 抗滑力
   // Fr = W * mu
   const Resisting_Force = wall_weight * friction_base;
-  const FS_slide = Resisting_Force / Math.max(0.1, Total_Driving_Force);
+  const FS_slide = Resisting_Force / Math.max(0.001, Total_Driving_Force);
   
   // 5. 力矩计算 (以墙趾为支点)
   // 倾覆力矩 Mo
@@ -62,9 +62,9 @@ export const calculate_retaining_wall = (params: RetainingParams): RetainingResu
   
   // 抗倾覆力矩 Mr
   // W 作用于 wall_width/2 (假设重力式挡墙重心居中)
-  const Mr = wall_weight * (wall_width / 2);
+  const Mr = wall_weight * (wall_width / 2.0);
   
-  const FS_overt = Mr / Math.max(0.1, Mo);
+  const FS_overt = Mr / Math.max(0.001, Mo);
   
   // 6. 状态研判
   let status: 'safe' | 'warning' | 'danger' = 'safe';

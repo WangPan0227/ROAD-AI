@@ -22,29 +22,26 @@ const STORAGE_KEY = 'roadbedguard_tunnel_history';
 const PENDING_LOAD_KEY = 'roadbedguard_pending_tunnel_load';
 
 const TunnelHistoryLibrary: React.FC = () => {
-  const [history, setHistory] = useState<TunnelHistoryCase[]>([]);
-  const [selectedCase, setSelectedCase] = useState<TunnelHistoryCase | null>(null);
+  const [history, setHistory] = useState<TunnelHistoryCase[]>(() => {
+    const savedHistory = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
+    if (savedHistory) {
+      try { return JSON.parse(savedHistory); } catch (e) {
+        console.error("Failed to parse saved tunnel history", e);
+      }
+    }
+    return [
+      {
+        id: 'TN-HIST-001',
+        date: new Date().toISOString(),
+        params: { B: 12.0, Ht: 8.0, H: 45.0, rockClass: 5, gamma: 20.0, mu: 0.35, dLining: 450, dCrack: 280, hasDebris: true },
+        results: { tunnel_type: '浅埋隧道', q_kPa: 900.0, deep_rate: 62.2, damage_level: 4, health_score: 15.1 }
+      }
+    ];
+  });
+  const [selectedCase, setSelectedCase] = useState<TunnelHistoryCase | null>(() => history.length > 0 ? history[0] : null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    const savedHistory = localStorage.getItem(STORAGE_KEY);
-    if (savedHistory) {
-      const parsed = JSON.parse(savedHistory);
-      setHistory(parsed);
-      if (parsed.length > 0) setSelectedCase(parsed[0]);
-    } else {
-      const mockHistory: TunnelHistoryCase[] = [
-        {
-          id: 'TN-HIST-001',
-          date: new Date().toISOString(),
-          params: { B: 12.0, Ht: 8.0, H: 45.0, rockClass: 5, gamma: 20.0, mu: 0.35, dLining: 450, dCrack: 280, hasDebris: true },
-          results: { tunnel_type: '浅埋隧道', q_kPa: 900.0, deep_rate: 62.2, damage_level: 4, health_score: 15.1 }
-        }
-      ];
-      setHistory(mockHistory);
-      setSelectedCase(mockHistory[0]);
-    }
-  }, []);
+  useEffect(() => {}, []);
 
   const handleDelete = (id: string) => {
     if (window.confirm('确定要删除这条隧道推演记录吗？')) {
@@ -100,8 +97,8 @@ const TunnelHistoryLibrary: React.FC = () => {
               </div>
               <div className="flex items-center text-[10px] text-gray-500 font-mono mb-2"><Clock className="w-3 h-3 mr-1"/> {new Date(item.date).toLocaleString()}</div>
               <div className="flex justify-between text-xs mt-2 pt-2 border-t border-gray-200/60">
-                <span className="text-gray-600">健康度: <strong className="text-slate-800">{item.results.health_score.toFixed(1)}</strong></span>
-                <span className="text-gray-600">埋深: <strong className="text-slate-800">{item.params.H}m</strong></span>
+                <span className="text-gray-600">健康度: <strong className="text-slate-800">{(item.results?.health_score ?? 0).toFixed(1)}</strong></span>
+                <span className="text-gray-600">埋深: <strong className="text-slate-800">{item.params?.H ?? 0}m</strong></span>
               </div>
             </div>
           ))}
@@ -146,12 +143,12 @@ const TunnelHistoryLibrary: React.FC = () => {
                   <h3 className="text-sm font-black text-slate-300 uppercase tracking-wider mb-4 border-b border-slate-600 pb-2 flex items-center"><Activity className="w-4 h-4 mr-2 text-emerald-400"/> 核心计算结果</h3>
                   <div className="space-y-4">
                     <div><div className="text-[10px] text-slate-400 uppercase mb-1">判别工况</div><div className="text-lg font-bold text-emerald-400">{selectedCase.results.tunnel_type}</div></div>
-                    <div><div className="text-[10px] text-slate-400 uppercase mb-1">垂直围岩压力 (q)</div><div className="text-2xl font-mono font-bold text-white">{selectedCase.results.q_kPa.toFixed(1)} <span className="text-sm">kPa</span></div></div>
+                    <div><div className="text-[10px] text-slate-400 uppercase mb-1">垂直围岩压力 (q)</div><div className="text-2xl font-mono font-bold text-white">{(selectedCase.results?.q_kPa ?? 0).toFixed(1)} <span className="text-sm">kPa</span></div></div>
                   </div>
                 </div>
-                <div className={`mt-6 p-4 rounded-xl border ${selectedCase.results.health_score < 60 ? 'bg-red-500/20 border-red-500/50 text-red-200' : 'bg-emerald-500/20 border-emerald-500/50 text-emerald-200'}`}>
+                <div className={`mt-6 p-4 rounded-xl border ${(selectedCase.results?.health_score ?? 0) < 60 ? 'bg-red-500/20 border-red-500/50 text-red-200' : 'bg-emerald-500/20 border-emerald-500/50 text-emerald-200'}`}>
                   <div className="text-[10px] uppercase font-bold mb-1 opacity-80">综合剩余健康度</div>
-                  <div className="text-3xl font-black font-mono">{selectedCase.results.health_score.toFixed(1)}</div>
+                  <div className="text-3xl font-black font-mono">{(selectedCase.results?.health_score ?? 0).toFixed(1)}</div>
                 </div>
               </div>
             </div>

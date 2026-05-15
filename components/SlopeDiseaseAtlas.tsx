@@ -42,17 +42,24 @@ const colorMap: Record<string, any> = {
 };
 
 const SlopeDiseaseAtlas: React.FC = () => {
-  const [matrix, setMatrix] = useState<any[]>([]);
+  const [matrix, setMatrix] = useState<any[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_DISEASE);
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {
+        console.error("Failed to parse saved disease matrix", e);
+      }
+    }
+    // Note: Since we need to also set it in localStorage if missing, 
+    // we can't easily do it here without side effects, but DEFAULT_MATRIX is a fallback.
+    return DEFAULT_MATRIX;
+  });
   const [showDeveloperMode, setShowDeveloperMode] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_DISEASE);
-    if (saved) {
-      setMatrix(JSON.parse(saved));
-    } else {
-      setMatrix(DEFAULT_MATRIX);
-      localStorage.setItem(STORAGE_KEY_DISEASE, JSON.stringify(DEFAULT_MATRIX));
+    // Ensure default matrix is saved if nothing was there
+    if (!localStorage.getItem(STORAGE_KEY_DISEASE)) {
+        localStorage.setItem(STORAGE_KEY_DISEASE, JSON.stringify(DEFAULT_MATRIX));
     }
   }, []);
 
@@ -207,14 +214,14 @@ const SlopeDiseaseAtlas: React.FC = () => {
                                 </div>
                                 <pre className="text-emerald-300 font-mono text-sm whitespace-pre-wrap flex-1 overflow-y-auto">
 {`{
-  "damage_level": ${item.schema.level},
+  "damage_level": ${item.schema?.level ?? item.level},
   "degradation_factors": {
-    "c_multiplier": ${item.schema.c_factor.toFixed(2)},
-    "phi_multiplier": ${item.schema.phi_factor.toFixed(2)}
+    "c_multiplier": ${(item.schema?.c_factor ?? 0).toFixed(2)},
+    "phi_multiplier": ${(item.schema?.phi_factor ?? 0).toFixed(2)}
   },
   "geometry_modifiers": {
-    "tension_crack_depth": ${item.schema.crack_depth},
-    "apply_hydrostatic_pressure": ${item.schema.add_water_pressure}
+    "tension_crack_depth": ${item.schema?.crack_depth ?? 0},
+    "apply_hydrostatic_pressure": ${item.schema?.add_water_pressure ?? false}
   }
 }`}
                                 </pre>

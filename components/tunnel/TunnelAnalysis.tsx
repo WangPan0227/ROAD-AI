@@ -1,17 +1,30 @@
-import React, { useState, useEffect } from 'react';
-import { Activity, ShieldAlert, Zap, Layers, Settings, Rocket, Trophy, Target, FileSearch, Save, Gauge, ChevronRight, AlertTriangle, ShieldCheck, Database, Info } from 'lucide-react';
+import React, { useState } from 'react';
+import { Activity, ShieldAlert, Zap, Layers, Settings, Rocket, Target, Save, Gauge, ChevronRight, AlertTriangle, ShieldCheck, Database, Info } from 'lucide-react';
 import { calculate_tunnel_pressure, optimize_tunnel_reinforcement, TunnelEngineParams } from '../../lib/tunnelCalculations';
 
 const TunnelAnalysis: React.FC = () => {
+  const [params, setParams] = useState<TunnelEngineParams>(() => {
+    const pendingLoad = typeof window !== 'undefined' ? localStorage.getItem('roadbedguard_pending_tunnel_load') : null;
+    if (pendingLoad) {
+      try {
+        const loadedParams = JSON.parse(pendingLoad);
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('roadbedguard_pending_tunnel_load');
+        }
+        return loadedParams;
+      } catch (e) {
+        console.error("历史数据载入失败", e);
+      }
+    }
+    return {
+      B: 10.0, Ht: 7.0, H: 25.0, rockClass: 4, 
+      gamma: 22.0, mu: 0.3, dLining: 400, dCrack: 120, hasDebris: false,
+    };
+  });
+  const [results, setResults] = useState<any>(() => calculate_tunnel_pressure(params));
   const [isCalculating, setIsCalculating] = useState(false);
   const [activeMeasure, setActiveMeasure] = useState<string>('none');
-  const [optResults, setOptResults] = useState<any[] | null>(null);
-  const [results, setResults] = useState<any>(null);
-
-  const [params, setParams] = useState<TunnelEngineParams>({
-    B: 10.0, Ht: 7.0, H: 25.0, rockClass: 4, 
-    gamma: 22.0, mu: 0.3, dLining: 400, dCrack: 120, hasDebris: false,
-  });
+  // const [optResults, setOptResults] = useState<any[] | null>(null);
 
   const updateParam = (key: string, value: any) => {
     setParams(prev => ({ ...prev, [key]: value }));
@@ -19,45 +32,43 @@ const TunnelAnalysis: React.FC = () => {
 
   const runStatusAnalysis = () => {
     setIsCalculating(true);
-    setOptResults(null); 
+    // setOptResults(null); 
     
-    setTimeout(() => {
-      let applied_params = { ...params };
-      
-      if (activeMeasure === 'S1') {
-          applied_params.hasDebris = false;
-          applied_params.dCrack = 0;
-      } else if (activeMeasure === 'S2') {
-          applied_params.hasDebris = false;
-      } else if (activeMeasure === 'S3') {
-          applied_params.hasDebris = false;
-          applied_params.dCrack *= 0.2;
-          applied_params.dLining += 100;
-      }
+    // 同步执行引擎计算，杜绝闭包陷阱
+    const applied_params = { ...params };
+    
+    if (activeMeasure === 'S1') {
+        applied_params.hasDebris = false;
+        applied_params.dCrack = 0;
+    } else if (activeMeasure === 'S2') {
+        applied_params.hasDebris = false;
+    } else if (activeMeasure === 'S3') {
+        applied_params.hasDebris = false;
+        applied_params.dCrack *= 0.2;
+        applied_params.dLining += 100;
+    }
 
-      const res = calculate_tunnel_pressure(applied_params);
-      
-      if (activeMeasure === 'S2') {
-          res.health_score = Math.min(100, res.health_score + 40);
-      }
+    const res = calculate_tunnel_pressure(applied_params);
+    
+    if (activeMeasure === 'S2') {
+        res.health_score = Math.min(100, res.health_score + 40);
+    }
 
-      setResults(res);
-      setIsCalculating(false);
-    }, 600);
+    setResults(res);
+    setIsCalculating(false);
   };
 
+  /*
   const runOptimization = () => {
     setIsCalculating(true);
-    setTimeout(() => {
-      const ecoConfigStr = localStorage.getItem('roadbedguard_tunnel_economics');
-      const ecoConfig = ecoConfigStr ? JSON.parse(ecoConfigStr) : {};
-      const rankedSchemes = optimize_tunnel_reinforcement(params, ecoConfig);
-      setOptResults(rankedSchemes);
-      setIsCalculating(false);
-    }, 800);
+    // 同步执行寻优计算
+    const ecoConfigStr = localStorage.getItem('roadbedguard_tunnel_economics');
+    const ecoConfig = ecoConfigStr ? JSON.parse(ecoConfigStr) : {};
+    const rankedSchemes = optimize_tunnel_reinforcement(params, ecoConfig);
+    setOptResults(rankedSchemes);
+    setIsCalculating(false);
   };
-
-  useEffect(() => { runStatusAnalysis(); }, []);
+  */
 
   const saveToHistory = () => {
     if (!results) {
@@ -91,33 +102,27 @@ const TunnelAnalysis: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 text-slate-300 font-sans">
+    <div className="flex flex-col h-full bg-gray-100 text-gray-800 font-sans overflow-hidden">
       <div className="flex-1 flex overflow-hidden">
         {/* 左侧侧边栏 */}
-        <div className="w-80 bg-slate-900 border-r border-slate-800 flex flex-col overflow-hidden relative shadow-2xl">
-          <div className="absolute top-0 right-0 w-[1px] h-full bg-gradient-to-b from-transparent via-blue-500/20 to-transparent" />
-          
-          <div className="p-4 border-b border-slate-800 bg-slate-900/50 backdrop-blur-md flex items-center justify-between sticky top-0 z-10">
-            <h3 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] flex items-center">
-              <Settings className="w-3.5 h-3.5 mr-2" /> 衬砌健康仿真配置
+        <div className="w-80 bg-white border-r border-gray-200 flex flex-col overflow-hidden relative shadow-sm">
+          <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between sticky top-0 z-10">
+            <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center">
+              <Settings className="w-3.5 h-3.5 mr-2 text-blue-600" /> 衬砌健康仿真配置
             </h3>
-            <div className="flex space-x-1">
-               <div className="w-1 h-1 bg-blue-500 rounded-full animate-pulse" />
-               <div className="w-1 h-1 bg-blue-500 rounded-full animate-pulse [animation-delay:200ms]" />
-            </div>
           </div>
           
-          <div className="flex-1 p-5 space-y-8 overflow-y-auto custom-scrollbar">
+          <div className="flex-1 p-5 space-y-6 overflow-y-auto custom-scrollbar">
             {/* Parameters */}
             <div className="space-y-6">
               <div className="space-y-4">
-                <h4 className="font-black text-slate-500 text-[10px] uppercase tracking-[0.2em] flex items-center">
+                <h4 className="font-bold text-gray-400 text-[10px] uppercase tracking-widest flex items-center">
                   <Target className="w-3.5 h-3.5 mr-2 text-blue-500" /> 几何与地质参数矩阵
                 </h4>
                 <div className="space-y-3">
-                  <div className="bg-slate-800/40 p-4 rounded-xl border border-slate-700/50">
-                    <label className="block text-[8px] text-slate-500 uppercase mb-2 font-black">围岩级别 (I-VI)</label>
-                    <select className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs font-mono font-black text-blue-400 outline-none" value={params.rockClass} onChange={e => updateParam('rockClass', parseInt(e.target.value))}>
+                  <div className="bg-gray-50 border border-gray-200 p-3 rounded-sm focus-within:border-blue-500 transition-all">
+                    <label className="block text-[9px] text-gray-500 uppercase mb-1 font-bold tracking-tight">围岩级别 (I-VI)</label>
+                    <select className="w-full bg-transparent border-none p-0 text-sm font-medium text-gray-800 outline-none cursor-pointer appearance-none" value={params.rockClass} onChange={e => updateParam('rockClass', parseInt(e.target.value))}>
                       <option value={1}>I 级围岩 (优质)</option>
                       <option value={2}>II 级围岩 (良好)</option>
                       <option value={3}>III 级围岩 (中等)</option>
@@ -127,45 +132,44 @@ const TunnelAnalysis: React.FC = () => {
                     </select>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-slate-800/40 p-3 rounded-xl border border-slate-700/50">
-                      <label className="block text-[8px] text-slate-500 uppercase mb-1.5 font-black">跨度 B (m)</label>
-                      <input type="number" step="0.1" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs font-mono text-slate-300" value={params.B} onChange={e => updateParam('B', parseFloat(e.target.value))} />
+                    <div className="bg-gray-50 border border-gray-200 p-3 rounded-sm focus-within:border-blue-500 transition-all">
+                      <label className="block text-[9px] text-gray-500 uppercase mb-1 font-bold tracking-tight">跨度 B (m)</label>
+                      <input type="number" step="0.1" className="w-full bg-transparent border-none p-0 text-sm font-mono text-gray-800 outline-none" value={params.B} onChange={e => updateParam('B', parseFloat(e.target.value))} />
                     </div>
-                    <div className="bg-slate-800/40 p-3 rounded-xl border border-slate-700/50">
-                      <label className="block text-[8px] text-slate-500 uppercase mb-1.5 font-black">埋深 H (m)</label>
-                      <input type="number" step="0.1" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs font-mono text-blue-400 font-bold" value={params.H} onChange={e => updateParam('H', parseFloat(e.target.value))} />
+                    <div className="bg-gray-50 border border-gray-200 p-3 rounded-sm focus-within:border-blue-500 transition-all">
+                      <label className="block text-[9px] text-gray-500 uppercase mb-1 font-bold tracking-tight">埋深 H (m)</label>
+                      <input type="number" step="0.1" className="w-full bg-transparent border-none p-0 text-sm font-mono text-blue-600 font-bold outline-none" value={params.H} onChange={e => updateParam('H', parseFloat(e.target.value))} />
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-4 pt-4 border-t border-slate-800/50">
-                <h4 className="font-black text-red-500 text-[10px] uppercase tracking-[0.2em] flex items-center">
+              <div className="space-y-4 pt-4 border-t border-gray-100">
+                <h4 className="font-bold text-red-600 text-[10px] uppercase tracking-widest flex items-center">
                   <AlertTriangle className="w-3.5 h-3.5 mr-2" /> 二衬表观病害参数
                 </h4>
-                <div className="bg-red-500/5 border border-red-500/20 p-5 rounded-2xl space-y-4 relative overflow-hidden group">
-                  <div className="absolute top-0 left-0 w-full h-[1px] bg-red-500/20 animate-scan pointer-events-none" />
+                <div className="bg-red-50/30 border border-red-100 p-4 rounded-sm space-y-4">
                   <div>
-                    <label className="block text-[8px] text-red-400 uppercase mb-2 font-black">全衬砌厚度 (mm)</label>
-                    <input type="number" className="w-full bg-slate-950 border border-red-500/30 rounded-lg p-2.5 text-xs font-mono text-slate-300" value={params.dLining} onChange={e => updateParam('dLining', parseFloat(e.target.value))} />
+                    <label className="block text-[9px] text-gray-500 uppercase mb-1 font-bold tracking-tight">全衬砌厚度 (mm)</label>
+                    <input type="number" className="w-full bg-white border border-gray-200 rounded-sm p-2 text-sm font-mono text-gray-800 outline-none focus:border-red-400" value={params.dLining} onChange={e => updateParam('dLining', parseFloat(e.target.value))} />
                   </div>
                   <div>
-                    <label className="block text-[8px] text-red-500 uppercase mb-2 font-black">实测裂缝深度 (mm)</label>
-                    <input type="number" className="w-full bg-slate-950 border border-red-500/50 rounded-lg p-2.5 text-lg font-black font-mono text-red-500 shadow-inner outline-none" value={params.dCrack} onChange={e => updateParam('dCrack', parseFloat(e.target.value))} />
+                    <label className="block text-[9px] text-red-700 uppercase mb-1 font-bold tracking-tight">实测裂缝深度 (mm)</label>
+                    <input type="number" className="w-full bg-white border border-red-200 rounded-sm p-2 text-lg font-bold font-mono text-red-600 outline-none focus:border-red-500" value={params.dCrack} onChange={e => updateParam('dCrack', parseFloat(e.target.value))} />
                   </div>
-                  <div className="flex items-center space-x-3 bg-red-500/10 p-2.5 rounded-xl border border-red-500/20">
-                    <input type="checkbox" id="debris" checked={params.hasDebris} onChange={e => updateParam('hasDebris', e.target.checked)} className="accent-red-500 h-3.5 w-3.5 rounded border-red-500/50 bg-slate-900" />
-                    <label htmlFor="debris" className="text-[10px] font-black text-red-400 uppercase tracking-tighter leading-none">拱顶存在物理掉块/背后空洞</label>
+                  <div className="flex items-center space-x-2 p-2 rounded-sm border border-transparent hover:bg-red-50 transition-all cursor-pointer">
+                    <input type="checkbox" id="debris" checked={params.hasDebris} onChange={e => updateParam('hasDebris', e.target.checked)} className="h-3.5 w-3.5 rounded border-gray-300 text-red-600 focus:ring-red-500" />
+                    <label htmlFor="debris" className="text-[10px] font-bold text-gray-700 uppercase tracking-tight cursor-pointer">拱顶存在掉块/背后空洞</label>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-4 pt-4 border-t border-slate-800/50">
-                <h4 className="font-black text-indigo-400 text-[10px] uppercase tracking-[0.2em] flex items-center">
+              <div className="space-y-4 pt-4 border-t border-gray-100">
+                <h4 className="font-bold text-indigo-600 text-[10px] uppercase tracking-widest flex items-center">
                   <ShieldCheck className="w-3.5 h-3.5 mr-2" /> 加固处治实时预演
                 </h4>
-                <div className={`p-4 rounded-2xl border transition-all ${activeMeasure !== 'none' ? 'bg-indigo-500/10 border-indigo-500/30 ring-1 ring-indigo-500/20' : 'bg-slate-800/40 border-slate-700/50'}`}>
-                  <select className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-[10px] font-black text-indigo-400 uppercase tracking-widest outline-none cursor-pointer" value={activeMeasure} onChange={e => setActiveMeasure(e.target.value)}>
+                <div className={`p-3 rounded-sm border transition-all ${activeMeasure !== 'none' ? 'bg-indigo-50 border-indigo-200' : 'bg-gray-50 border-gray-200'}`}>
+                  <select className="w-full bg-transparent border-none p-0 text-[10px] font-bold text-indigo-700 uppercase tracking-wider outline-none cursor-pointer" value={activeMeasure} onChange={e => setActiveMeasure(e.target.value)}>
                     <option value="none">Baseline: 无加固背景</option>
                     <option value="S1">S1: 高聚物主动注浆</option>
                     <option value="S2">S2: 型钢挂板复合支护</option>
@@ -176,20 +180,20 @@ const TunnelAnalysis: React.FC = () => {
             </div>
           </div>
 
-          <div className="p-5 border-t border-slate-800 bg-slate-900/80 backdrop-blur-md sticky bottom-0 z-10">
+          <div className="p-4 border-t border-gray-100 bg-gray-50">
             <button 
               onClick={runStatusAnalysis} disabled={isCalculating}
-              className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.4em] flex items-center justify-center space-x-3 transition-all transform active:scale-95 shadow-2xl ${isCalculating ? 'bg-slate-800 text-slate-600' : 'bg-blue-600 text-white hover:bg-blue-500 shadow-blue-500/20'}`}
+              className={`w-full py-3 rounded-sm font-bold text-xs uppercase tracking-widest flex items-center justify-center space-x-2 transition-all active:scale-95 shadow-sm ${isCalculating ? 'bg-gray-200 text-gray-500' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
             >
               {isCalculating ? (
                 <>
-                  <Activity className="w-4 h-4 animate-spin text-blue-400" />
-                  <span>PROCESS_SOLVING...</span>
+                  <Activity className="w-4 h-4 animate-spin" />
+                  <span>CALCULATING...</span>
                 </>
               ) : (
                 <>
                   <Rocket className="w-4 h-4" />
-                  <span>执行围岩压力与结构诊断</span>
+                  <span>执行结构诊断</span>
                 </>
               )}
             </button>
@@ -197,91 +201,91 @@ const TunnelAnalysis: React.FC = () => {
         </div>
 
         {/* 右侧主视口 */}
-        <div className="flex-1 flex flex-col overflow-hidden relative">
+        <div className="flex-1 flex flex-col overflow-hidden">
           {/* Header */}
-          <div className="h-16 bg-slate-900 border-b border-slate-800 px-8 flex items-center justify-between shadow-2xl relative z-20">
-            <div className="absolute top-0 left-0 w-full h-[1px] bg-blue-500/10 animate-scan pointer-events-none" />
+          <div className="h-14 bg-white border-b border-gray-200 px-6 flex items-center justify-between shadow-sm relative z-20">
             <div className="flex items-center space-x-4">
-              <div className="p-2 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                <Database className="w-5 h-5 text-blue-500 animate-pulse" />
+              <div className="p-2 bg-blue-50 rounded-sm border border-blue-100">
+                <Database className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <h2 className="text-sm font-black text-slate-100 tracking-wider uppercase">InfraGuard | 隧道围岩压力与衬砌健康度评估系统</h2>
-                <p className="text-[10px] text-slate-500 font-mono tracking-tighter italic uppercase border-l border-slate-700 pl-2">Lining Integrity Diagnostics // Load-Equivalent Height Mode</p>
+                <h2 className="text-sm font-bold text-gray-800 tracking-tight flex items-center uppercase">
+                  InfraGuard | 隧道围岩压力与衬砌健康评估
+                </h2>
               </div>
             </div>
-            <button onClick={saveToHistory} className="group flex items-center px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all border border-slate-700/50 shadow-lg active:scale-95">
-              <Save className="w-3.5 h-3.5 mr-2 text-emerald-500 group-hover:scale-125 transition-transform" /> 案例归档
+            <button onClick={saveToHistory} className="flex items-center px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-sm text-[10px] font-bold uppercase tracking-wider transition-all border border-gray-300 shadow-sm active:scale-95">
+              <Save className="w-3.5 h-3.5 mr-2 text-gray-500" /> 案例归档
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-8 bg-slate-900/20 custom-scrollbar relative z-10">
-            <div className="absolute inset-0 bg-grid-white/[0.02] pointer-events-none" />
-            {!results ? null : (
-              <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-700">
+          <div className="flex-1 overflow-y-auto p-8 bg-gray-50 custom-scrollbar relative z-10">
+            {!results ? (
+              <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-4">
+                <div className="p-6 bg-white rounded-full border border-gray-200 shadow-sm animate-pulse">
+                  <Rocket className="w-12 h-12 text-gray-200" />
+                </div>
+                <p className="text-sm font-medium uppercase tracking-widest">请在左侧面板配置参数并启动仿真</p>
+              </div>
+            ) : (
+              <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {/* Result Dash Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-stretch font-mono">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
                    <div className="md:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="bg-slate-900/50 backdrop-blur-md p-6 rounded-3xl border border-slate-800 shadow-2xl relative overflow-hidden group col-span-2">
-                         <div className="absolute top-0 right-0 p-4 opacity-10 flex space-x-1">
-                            <div className="w-1 h-1 bg-blue-500 rounded-full" />
-                            <div className="w-1 h-1 bg-blue-500 rounded-full animate-ping" />
-                         </div>
+                      <div className="bg-white p-6 rounded-sm border border-gray-200 shadow-sm relative overflow-hidden col-span-2">
                          <div className="flex items-center justify-between">
                             <div>
-                               <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                  <Layers className="w-3.5 h-3.5 text-blue-400" /> 自动工况判定 (Condition Analysis)
+                               <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                  <Layers className="w-3.5 h-3.5 text-blue-500" /> 工况判定 (Condition)
                                </div>
-                               <div className={`text-4xl font-black italic tracking-tighter ${results.tunnel_type === '深埋隧道' ? 'text-blue-500' : 'text-emerald-500'} text-shadow-glow`}>
+                               <div className={`text-4xl font-bold tracking-tight ${results.tunnel_type === '深埋隧道' ? 'text-gray-900' : 'text-blue-700'}`}>
                                   {results.tunnel_type}
                                </div>
                             </div>
-                            <div className="text-right">
-                               <div className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-1">等效计算高度 (hq)</div>
-                               <div className="text-2xl font-black text-slate-100">{results.hq.toFixed(2)} <span className="text-xs text-slate-600 uppercase">m</span></div>
+                            <div className="text-right bg-gray-50 p-4 border border-gray-100 rounded-sm">
+                               <div className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">等效高度 (hq)</div>
+                               <div className="text-2xl font-mono font-bold text-gray-900">{(results?.hq ?? 0).toFixed(2)} <span className="text-xs text-gray-400">m</span></div>
                             </div>
                          </div>
                       </div>
                       
-                      <div className="bg-slate-900/50 backdrop-blur-md p-6 rounded-3xl border border-slate-800 shadow-2xl relative">
-                         <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">垂直压力 (q)</div>
+                      <div className="bg-white p-6 rounded-sm border border-gray-200 shadow-sm">
+                         <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">垂直压力 (q)</div>
                          <div className="flex items-baseline space-x-2">
-                            <div className="text-4xl font-black text-slate-100 tracking-tighter">{results.q_kPa.toFixed(1)}</div>
-                            <div className="text-xs text-slate-600 font-bold uppercase tracking-widest">kPa</div>
+                            <div className="text-3xl font-bold text-gray-900 font-mono">{(results?.q_kPa ?? 0).toFixed(1)}</div>
+                            <div className="text-[10px] text-gray-400 font-bold uppercase">kPa</div>
                          </div>
                       </div>
                       
-                      <div className="bg-slate-900/50 backdrop-blur-md p-6 rounded-3xl border border-slate-800 shadow-2xl relative">
-                         <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">侧压系数 (λ)</div>
-                         <div className="flex items-baseline space-x-2 text-blue-400">
-                            <div className="text-4xl font-black tracking-tighter font-mono italic">{results.lambda.toFixed(3)}</div>
-                            <div className="text-[10px] font-black uppercase opacity-40">Matrix Coeff</div>
+                      <div className="bg-white p-6 rounded-sm border border-gray-200 shadow-sm">
+                         <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">侧压系数 (λ)</div>
+                         <div className="flex items-baseline space-x-2">
+                            <div className="text-3xl font-bold text-blue-600 font-mono italic">{(results?.lambda ?? 0).toFixed(3)}</div>
                          </div>
                       </div>
                    </div>
 
-                   <div className={`md:col-span-4 p-8 rounded-[2.5rem] border relative flex flex-col justify-center overflow-hidden shadow-2xl ${results.damage_level >= 3 ? 'bg-red-500/10 border-red-500/50 ring-1 ring-red-500/20' : 'bg-emerald-500/10 border-emerald-500/50'}`}>
-                      <div className="absolute inset-0 bg-grid-white/[0.05] pointer-events-none" />
-                      <div className="relative z-10 flex flex-col items-center text-center space-y-6">
-                         <div className={`p-5 rounded-full ${results.damage_level >= 3 ? 'bg-red-500/20 text-red-500 shadow-[0_0_30px_rgba(239,68,68,0.3)]' : 'bg-emerald-500/20 text-emerald-500'}`}>
-                            {results.damage_level >= 3 ? <ShieldAlert className="w-12 h-12 animate-pulse" /> : <ShieldCheck className="w-12 h-12" />}
+                   <div className={`md:col-span-4 p-6 rounded-sm border relative flex flex-col justify-center shadow-sm ${results.damage_level >= 3 ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`}>
+                      <div className="relative z-10 flex flex-col items-center text-center space-y-4">
+                         <div className={`p-4 rounded-full ${results.damage_level >= 3 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                            {results.damage_level >= 3 ? <ShieldAlert className="w-10 h-10" /> : <ShieldCheck className="w-10 h-10" />}
                          </div>
                          <div className="w-full">
-                            <div className="flex justify-between text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1.5 opacity-60 italic">
+                            <div className="flex justify-between text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">
                                <span>Lining Performance</span>
-                               <span>Ratio: {results.deep_rate.toFixed(1)}%</span>
+                               <span>{(results?.deep_rate ?? 0).toFixed(1)}%</span>
                             </div>
-                            <h3 className={`text-xl font-black tracking-tight leading-tight uppercase ${getDamageStatus(results.damage_level).textCol}`}>
+                            <h3 className={`text-lg font-bold tracking-tight uppercase ${getDamageStatus(results.damage_level).textCol}`}>
                                {getDamageStatus(results.damage_level).text}
                             </h3>
                          </div>
-                         <div className="pt-6 border-t border-white/5 w-full space-y-2">
-                             <div className="flex justify-between text-[9px] font-black text-slate-600 uppercase tracking-widest">
+                         <div className="pt-4 border-t border-gray-200 w-full space-y-2">
+                             <div className="flex justify-between text-[9px] font-bold text-gray-500 uppercase tracking-widest">
                                 <span>剩余健康度指数</span>
-                                <span className={results.health_score < 60 ? 'text-red-500' : 'text-emerald-500'}>{results.health_score.toFixed(1)}</span>
+                                <span className="font-mono text-gray-800">{(results?.health_score ?? 0).toFixed(1)}</span>
                              </div>
-                             <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden border border-white/5 shadow-inner p-[1px]">
-                                <div className={`h-full rounded-full transition-all duration-1000 ${results.health_score > 85 ? 'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]' : results.health_score > 60 ? 'bg-yellow-500' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]'}`} style={{ width: `${results.health_score}%` }} />
+                             <div className="w-full bg-gray-200 h-1 rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full transition-all duration-1000 ${results.health_score > 85 ? 'bg-emerald-500' : results.health_score > 60 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${results.health_score}%` }} />
                              </div>
                          </div>
                       </div>
@@ -289,170 +293,137 @@ const TunnelAnalysis: React.FC = () => {
                 </div>
 
                 {/* Physics Scene Visualization */}
-                <div className="bg-slate-900/50 backdrop-blur-md rounded-[2.5rem] border border-slate-800 p-10 shadow-3xl flex flex-col items-center justify-center relative overflow-hidden min-h-[420px]">
-                   <div className="absolute top-8 left-10 flex items-center space-x-3">
-                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-ping" />
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">隧道横断面围岩压力与裂缝物理场 (Field Sim)</span>
+                <div className="bg-white rounded-sm border border-gray-200 p-8 shadow-sm flex flex-col items-center justify-center relative overflow-hidden min-h-[460px]">
+                   <div className="absolute top-6 left-8 flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-blue-600 rounded-full" />
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">断面监测数据仿真 (FDM-SIM)</span>
                    </div>
 
-                   <svg width="600" height="300" viewBox="0 0 600 300" className="relative z-10 filter drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+                   <svg width="640" height="340" viewBox="0 0 640 340" className="relative z-10">
                       <defs>
-                        <linearGradient id="rockGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                          <stop offset="0%" stopColor="#0f172a" />
-                          <stop offset="100%" stopColor="#1e293b" />
-                        </linearGradient>
-                        <filter id="crackGlow">
-                          <feGaussianBlur stdDeviation="1.5" result="blur" />
+                        {/* Photorealistic Filters */}
+                        <filter id="concreteNoise" x="0" y="0" width="100%" height="100%">
+                          <feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="3" result="noise" />
+                          <feDiffuseLighting in="noise" lightingColor="#f3f4f6" surfaceScale="2">
+                            <feDistantLight elevation="45" azimuth="45" />
+                          </feDiffuseLighting>
+                        </filter>
+                        
+                        <filter id="crackTurbulence">
+                          <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="4" seed="5" result="noise" />
+                          <feDisplacementMap in="SourceGraphic" in2="noise" scale="4" xChannelSelector="R" yChannelSelector="G" />
+                        </filter>
+
+                        <filter id="vectorGlow" x="-50%" y="-50%" width="200%" height="200%">
+                          <feGaussianBlur stdDeviation="3" result="blur" />
                           <feComposite in="SourceGraphic" in2="blur" operator="over" />
                         </filter>
+
+                        <pattern id="rockTexture" x="0" y="0" width="50" height="50" patternUnits="userSpaceOnUse">
+                           <rect width="50" height="50" fill="#f8fafc" />
+                           <circle cx="5" cy="5" r="1" fill="#e2e8f0" />
+                           <circle cx="25" cy="15" r="1.5" fill="#cbd5e1" />
+                           <circle cx="40" cy="35" r="1.2" fill="#e2e8f0" />
+                        </pattern>
                       </defs>
 
                       {/* Surrounding Rock Area */}
-                      <rect x="0" y="0" width="600" height="300" fill="url(#rockGrad)" opacity="0.3" />
+                      <rect x="0" y="0" width="640" height="340" fill="url(#rockTexture)" rx="4" />
                       
-                      {/* Pressure Lines Top (hq Visualization) */}
-                      <g className="animate-in fade-in duration-1000 slide-in-from-top-4">
-                         <line x1="150" y1={100 - results.hq * 2} x2="450" y2={100 - results.hq * 2} stroke="#3b82f6" strokeWidth="2" strokeDasharray="6 3" />
-                         <text x="300" y={90 - results.hq * 2} textAnchor="middle" fill="#3b82f6" fontSize="8" fontWeight="black" className="uppercase italic">Collapse Pressure Boundary (hq={results.hq.toFixed(1)}m)</text>
-                         
-                         {/* Down arrows for pressure */}
-                         {[180, 240, 300, 360, 420].map((x, i) => (
-                            <path key={i} d={`M ${x} ${100 - results.hq * 2} L ${x} 80`} stroke="#3b82f6" strokeWidth="1" markerEnd="url(#arrowhead)" opacity="0.4" />
-                         ))}
+                      {/* Pressure Boundary */}
+                      <g className="opacity-50">
+                         <line x1="160" y1={110 - (results?.hq ?? 0) * 2} x2="480" y2={110 - (results?.hq ?? 0) * 2} stroke="#3b82f6" strokeWidth="1.5" strokeDasharray="4 2" />
+                         <text x="320" y={100 - (results?.hq ?? 0) * 2} textAnchor="middle" fill="#3b82f6" fontSize="9" fontWeight="bold" className="uppercase">Load Boundary</text>
                       </g>
 
-                      {/* Tunnel Lining Outer */}
-                      <path d="M 150 250 A 150 150 0 0 1 450 250" fill="none" stroke="#334155" strokeWidth="25" strokeLinecap="round" />
-                      <line x1="150" y1="250" x2="450" y2="250" stroke="#334155" strokeWidth="15" />
+                      {/* Tunnel Lining (Industrial Photorealistic) */}
+                      <g transform="translate(320, 260)">
+                        {/* Outer Concrete Layer */}
+                        <path d="M -160 0 A 160 160 0 0 1 160 0" fill="none" stroke="#94a3b8" strokeWidth="32" strokeLinecap="round" filter="url(#concreteNoise)" />
+                        
+                        {/* Inner Void */}
+                        <path d="M -144 0 A 144 144 0 0 1 144 0" fill="#f1f5f9" stroke="#cbd5e1" strokeWidth="1" />
+                        <line x1="-160" y1="0" x2="160" y2="0" stroke="#94a3b8" strokeWidth="16" filter="url(#concreteNoise)" />
 
-                      {/* Tunnel Lining Inner (The dynamic one) */}
-                      <path d="M 162 250 A 138 138 0 0 1 438 250" fill="#0f172a" stroke="#1e293b" strokeWidth="2" />
-                      
-                      {/* Cracks Rendering */}
-                      {params.dCrack > 0 && (
-                         <g filter="url(#crackGlow)">
-                            {/* Vault Crack */}
-                            <path 
-                               d={`M 300 112 L ${300 + (Math.random() - 0.5) * 10} ${112 + params.dCrack/3} L 300 ${112 + params.dCrack/2}`} 
-                               stroke="#f43f5e" 
-                               strokeWidth={params.dCrack / 40} 
-                               fill="none" 
-                               className="animate-pulse"
-                            />
-                            {/* Shoulder Cracks */}
-                            <path 
-                               d={`M 200 150 L ${200 + params.dCrack/10} ${150 + params.dCrack/10}`} 
-                               stroke="#f43f5e" 
-                               strokeWidth={params.dCrack / 60} 
-                               fill="none" 
-                            />
-                            <path 
-                               d={`M 400 150 L ${400 - params.dCrack/10} ${150 + params.dCrack/10}`} 
-                               stroke="#f43f5e" 
-                               strokeWidth={params.dCrack / 60} 
-                               fill="none" 
-                            />
-                         </g>
-                      )}
+                        {/* Convergence Vectors (Glow) */}
+                        <g filter="url(#vectorGlow)" opacity={results.health_score < 80 ? 0.8 : 0.3}>
+                          <path d="M -140 -20 Q 0 -170 140 -20" fill="none" stroke="#3b82f6" strokeWidth="1" strokeDasharray="3 3" />
+                          <circle cx="0" cy="-144" r="3" fill="#3b82f6" fillOpacity="0.6" />
+                          <line x1="0" y1="-144" x2="0" y2="-164" stroke="#3b82f6" strokeWidth="2" />
+                        </g>
 
-                      {/* Debris Visualization */}
-                      {params.hasDebris && (
-                         <g className="animate-bounce">
-                             <polygon points="290,120 310,120 300,140" fill="#475569" stroke="#ef4444" strokeWidth="1" />
-                             <text x="300" y="160" textAnchor="middle" fill="#ef4444" fontSize="8" fontWeight="black" className="uppercase">Loose_Block_Detected</text>
-                         </g>
-                      )}
+                        {/* Cracks Rendering with Turbulence */}
+                        {params.dCrack > 0 && (
+                           <g filter="url(#crackTurbulence)">
+                              <path 
+                                 d={`M 0 -144 L -2 ${-144 + params.dCrack/2}`} 
+                                 stroke="#450a0a" 
+                                 strokeWidth={params.dCrack / 50} 
+                                 fill="none" 
+                                 opacity="0.8"
+                              />
+                              <path 
+                                 d={`M -100 -100 L ${-100 + params.dCrack/15} ${-100 + params.dCrack/10}`} 
+                                 stroke="#450a0a" 
+                                 strokeWidth={params.dCrack / 80} 
+                                 fill="none" 
+                              />
+                              <path 
+                                 d={`M 100 -100 L ${100 - params.dCrack/15} ${-100 + params.dCrack/10}`} 
+                                 stroke="#450a0a" 
+                                 strokeWidth={params.dCrack / 80} 
+                                 fill="none" 
+                              />
+                           </g>
+                        )}
 
-                      {/* Arrow Marker Def */}
-                      <defs>
-                        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
-                          <polygon points="0 0, 10 3.5, 0 7" fill="#3b82f6" />
-                        </marker>
-                      </defs>
+                        {/* Debris / Loose material */}
+                        {params.hasDebris && (
+                           <g transform="translate(0, -152)">
+                              <path d="M -10 5 L 0 15 L 10 5 Z" fill="#475569" stroke="#ef4444" strokeWidth="0.5" />
+                              <text y="30" textAnchor="middle" fill="#ef4444" fontSize="8" fontWeight="bold" className="uppercase">Void_Detected</text>
+                           </g>
+                        )}
+                      </g>
                    </svg>
                    
-                   <div className="absolute bottom-10 flex space-x-12 px-10 w-full justify-between items-center bg-slate-900/40 py-4 border-t border-slate-800/50 border-dashed">
-                      <div className="flex items-center space-x-3 text-emerald-400">
-                         <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                         <p className="text-[9px] font-black uppercase tracking-widest leading-none">Diagnostic: {params.rockClass} Class Rock // {activeMeasure === 'none' ? 'Baseline' : activeMeasure}</p>
+                   <div className="absolute bottom-8 px-10 w-full flex justify-between items-center text-[10px] text-gray-500 font-medium">
+                      <div className="flex items-center space-x-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-gray-300 rounded-sm" /> 围岩: {params.rockClass}类
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-blue-500 rounded-sm" /> 衬砌
+                        </div>
+                        {params.dCrack > 0 && (
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-red-900 rounded-sm" /> 生成裂缝
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-center space-x-6 font-mono text-[10px]">
-                         <div className="text-slate-500">Vertical Pressure (q): <span className="text-slate-100">{results.q_kPa.toFixed(1)} kN/m²</span></div>
-                         <div className="text-slate-500">Safety Index: <span className={results.health_score < 70 ? 'text-red-500 underline' : 'text-emerald-400'}>{(results.health_score / 10).toFixed(2)} / 10</span></div>
-                      </div>
+                      <div className="font-mono text-gray-400">HQ_CALC: {(results?.hq ?? 0).toFixed(3)}m</div>
                    </div>
                 </div>
 
-                {/* Optimization & AI Recommendation */}
-                {results.health_score < 85 && !optResults && activeMeasure === 'none' && (
-                  <div className="bg-slate-900/50 border-2 border-dashed border-indigo-500/30 rounded-[2rem] p-10 shadow-2xl flex flex-col md:flex-row items-center justify-between text-white relative overflow-hidden animate-in fade-in zoom-in duration-500">
-                    <div className="absolute inset-0 bg-indigo-500/5 pointer-events-none" />
-                    <div className="relative z-10">
-                      <div className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em] mb-4 flex items-center">
-                         <Zap className="w-4 h-4 mr-2" /> AI 智能寻优矩阵激活 (Optimization Matrix)
-                      </div>
-                      <h3 className="text-2xl font-black tracking-tight mb-2 uppercase">发现结构冗余不足 // 建议启动寻优</h3>
-                      <p className="text-xs text-slate-500 font-mono italic max-w-lg">Neural compute detected sub-basal health scores. Initializing multi-objective reinforcement scheme traversal to optimize Costs, Time, and Structural Integrity.</p>
-                    </div>
-                    <button onClick={runOptimization} className="relative z-10 mt-8 md:mt-0 px-10 py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-xs uppercase tracking-[0.3em] shadow-2xl shadow-indigo-500/40 transition-all hover:scale-105 active:scale-95">
-                      启动方案矩阵寻优
-                    </button>
-                  </div>
-                )}
-
-                {optResults && (
-                  <div className="space-y-8 animate-in slide-in-from-bottom-8 duration-700">
-                    <div className="flex items-center space-x-3 pl-4">
-                       <Trophy className="w-6 h-6 text-yellow-500" />
-                       <h3 className="text-lg font-black text-slate-100 uppercase tracking-widest leading-none">最优处治方案矩阵 (Ranked Scheme Atlas)</h3>
-                    </div>
-                    <div className="bg-gradient-to-br from-slate-900 to-indigo-950 rounded-[2.5rem] p-10 shadow-3xl border border-indigo-500/20 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-10 opacity-5">
-                           <Trophy className="w-48 h-48 text-white stroke-[1]" />
-                        </div>
-                        <div className="relative z-10 flex flex-col lg:flex-row lg:items-end justify-between gap-10">
-                           <div className="space-y-4 flex-1">
-                              <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.5em] block mb-2 px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full w-fit">Top Predicted Model</span>
-                              <h4 className="text-5xl font-black text-white italic tracking-tighter leading-none mb-6 underline decoration-indigo-500/30 underline-offset-8 decoration-4">{optResults[0].name}</h4>
-                              <div className="flex flex-wrap gap-3">
-                                 {optResults[0].measures.map((m: string, i: number) => (
-                                    <div key={i} className="px-3 py-1.5 bg-slate-950/50 border border-slate-800 rounded-lg text-[9px] font-black font-mono text-slate-400 uppercase tracking-widest">{m}</div>
-                                 ))}
-                              </div>
-                           </div>
-                           <div className="grid grid-cols-2 md:grid-cols-3 gap-8 lg:text-right font-mono">
-                              <div>
-                                 <p className="text-[10px] font-black text-slate-500 uppercase mb-2">估计全寿期造价</p>
-                                 <p className="text-3xl font-black text-emerald-400 tracking-tighter shadow-emerald-500/20">¥{Math.round(optResults[0].cost).toLocaleString()}</p>
-                              </div>
-                              <div>
-                                 <p className="text-[10px] font-black text-slate-500 uppercase mb-2">预估施工工期</p>
-                                 <p className="text-3xl font-black text-slate-100 tracking-tighter italic underline decoration-slate-800 underline-offset-4">{optResults[0].time.toFixed(1)} <span className="text-xs text-slate-600">D</span></p>
-                              </div>
-                              <div className="col-span-2 md:col-span-1">
-                                 <p className="text-[10px] font-black text-slate-500 uppercase mb-2">预期回归健康度</p>
-                                 <p className="text-5xl font-black text-emerald-400 font-serif leading-none tracking-tighter shadow-glow">{optResults[0].finalHealth.toFixed(1)}</p>
-                              </div>
-                           </div>
-                        </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Final Diagnostic Message */}
-                <div className="bg-slate-900/50 rounded-3xl p-8 border border-slate-800/80 shadow-2xl relative overflow-hidden group">
-                   <div className="absolute top-0 right-10 p-6 opacity-5">
-                      <Zap className="w-32 h-32 text-indigo-500" />
+                {/* AI Recommendation */}
+                <div className="bg-white border border-gray-200 rounded-sm p-6 shadow-sm relative overflow-hidden group">
+                   <div className="flex items-start space-x-4">
+                     <div className="p-3 bg-indigo-50 rounded-sm border border-indigo-100 mt-1">
+                        <Info className="w-5 h-5 text-indigo-600" />
+                     </div>
+                     <div className="flex-1">
+                       <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center">
+                         核心结构诊断报告 (Structure Diagnostic Summary)
+                       </h4>
+                       <p className="text-sm leading-relaxed text-gray-700 font-medium tracking-tight">
+                         当前隧道断面{(results?.damage_level ?? 0) >= 3 ? '处于高度危急工况' : '结构稳定性评估正常'}。
+                         垂直载荷实测 q={(results?.q_kPa ?? 0).toFixed(1)} kPa。
+                         {(results?.damage_level ?? 0) >= 3 
+                           ? ' 诊断建议：裂缝深度已穿透二衬厚度 50% 以上，建议立即启动型钢拱架（I20a）支护，并针对背后脱空区进行双浆液充填，防止顶部坍方进一步恶化。' 
+                           : ' 诊断建议：结构处于弹性工作阶段，建议保持日常巡检频率（SV.Q3/月），重点观察拱脚及仰拱变形速率。'}
+                       </p>
+                     </div>
                    </div>
-                   <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6 flex items-center">
-                     <Info className="w-4 h-4 mr-2 text-indigo-400" /> 结构动力学专家组决策简述
-                   </h4>
-                   <p className="text-xs leading-relaxed text-slate-500 font-medium italic">
-                     根据围岩压力计算结果（q={results.q_kPa.toFixed(1)}kPa）及二衬病害深度比（{results.deep_rate.toFixed(1)}%），当前结构已处于{results.damage_level >= 3 ? '高度不安全状态' : '基本稳定工况'}。
-                     {results.damage_level >= 3 
-                       ? ' 建议立即建立受灾区段围挡，采用型钢拱架（I18以上）进行紧急补强支撑，并配合大流量径向注浆，改善背后脱空状态，封闭衬砌表面裂纹防止钢筋进一步氧化劣变。' 
-                       : ' 建议维持现状监控频率，可采用柔性树脂填充微裂缝，提升二衬表观完整性，无需启动大型加固工程。'}
-                   </p>
                 </div>
               </div>
             )}

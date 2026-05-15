@@ -20,30 +20,30 @@ interface RoadbedTypicalCase {
 const STORAGE_KEY = 'roadbedguard_roadbed_typical_cases_v1';
 
 const RoadbedTypicalCases: React.FC = () => {
-  const [cases, setCases] = useState<RoadbedTypicalCase[]>([]);
+  const [cases, setCases] = useState<RoadbedTypicalCase[]>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {
+        console.error("Failed to parse saved roadbed typical cases", e);
+      }
+    }
+    return [
+      { 
+        id: '1', name: '某高速软土路基沉降观测', source: '《公路交通科技》', 
+        H: 6.5, cbr: 4.2, compaction: 0.93, rainfall: 150, q_load: 20, 
+        refSettlement: 45.2 
+      },
+      { 
+        id: '2', name: '黄土路基浸水沉降试验', source: '长安大学学报', 
+        H: 8.0, cbr: 6.5, compaction: 0.95, rainfall: 200, q_load: 0, 
+        refSettlement: 112.5 
+      },
+    ];
+  });
   const [isComputing, setIsComputing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 初始化加载
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try { setCases(JSON.parse(saved)); } catch (e) {}
-    } else {
-      setCases([
-        { 
-          id: '1', name: '某高速软土路基沉降观测', source: '《公路交通科技》', 
-          H: 6.5, cbr: 4.2, compaction: 0.93, rainfall: 150, q_load: 20, 
-          refSettlement: 45.2 
-        },
-        { 
-          id: '2', name: '黄土路基浸水沉降试验', source: '长安大学学报', 
-          H: 8.0, cbr: 6.5, compaction: 0.95, rainfall: 200, q_load: 0, 
-          refSettlement: 112.5 
-        },
-      ]);
-    }
-  }, []);
+  useEffect(() => {}, []);
 
   const computedCases = cases.filter(c => c.calcSettlement !== undefined);
   const qualifiedCases = computedCases.filter(c => c.error !== undefined && c.error <= 15);
@@ -180,7 +180,7 @@ const RoadbedTypicalCases: React.FC = () => {
             {computedCases.length === 0 ? <ShieldCheck className="w-8 h-8 text-gray-300 mr-3" /> :
              (isQualified ? <ShieldCheck className="w-12 h-12 text-green-500 mr-3" /> : <AlertTriangle className="w-12 h-12 text-red-500 mr-3" />)}
             <span className={`text-6xl font-black tracking-tighter ${computedCases.length === 0 ? 'text-gray-300' : (isQualified ? 'text-green-600' : 'text-red-600')}`}>
-              {computedCases.length === 0 ? '--' : `${confidenceScore.toFixed(1)}%`}
+              {computedCases.length === 0 ? '--' : `${(confidenceScore ?? 0).toFixed(1)}%`}
             </span>
           </div>
           <div className="text-sm font-bold text-gray-600 mt-4 bg-white/80 px-4 py-1.5 rounded-full shadow-sm border border-gray-200">
@@ -263,13 +263,13 @@ const RoadbedTypicalCases: React.FC = () => {
                       <input type="number" step="0.1" value={c.refSettlement} onChange={e => updateCell(c.id, 'refSettlement', parseFloat(e.target.value))} className="w-20 text-center font-bold text-blue-700 bg-white border-blue-200 rounded p-1.5 text-sm shadow-inner" />
                     </td>
                     <td className="p-3 text-center align-middle bg-gray-50 border-l border-gray-100 font-mono font-bold text-gray-700 text-lg">
-                      {c.calcSettlement !== undefined ? c.calcSettlement.toFixed(2) : '-'}
+                      {c.calcSettlement !== undefined ? (c.calcSettlement ?? 0).toFixed(2) : '-'}
                     </td>
                     <td className="p-3 text-center align-middle bg-gray-50">
                       {c.error !== undefined ? (
                         <div className={`flex items-center justify-center space-x-1 p-1.5 rounded ${c.error <= 15 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700 border border-red-200'}`}>
                           {c.error <= 15 ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-                          <span className="font-bold text-sm">{c.error.toFixed(1)}%</span>
+                          <span className="font-bold text-sm">{(c.error ?? 0).toFixed(1)}%</span>
                         </div>
                       ) : '-'}
                     </td>

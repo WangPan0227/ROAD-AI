@@ -1,7 +1,7 @@
 
-import React, { useRef, useState, useEffect, useMemo } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Text, Environment, ContactShadows, Instance, Instances, useTexture } from '@react-three/drei';
+import { OrbitControls, Text, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 
 interface Roadbed3DModelProps {
@@ -44,7 +44,7 @@ const TrapezoidalPrism: React.FC<{
     bevelEnabled: false
   }), [length]);
 
-  useFrame((state) => {
+  useFrame(() => {
     if (mesh.current && deformation) {
         // Simple deformation animation
         mesh.current.position.y = THREE.MathUtils.lerp(mesh.current.position.y, deformation.y, 0.05);
@@ -65,7 +65,7 @@ const TrapezoidalPrism: React.FC<{
 const GroutingParticles: React.FC<{ count?: number }> = ({ count = 100 }) => {
   const mesh = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
-  const particles = useMemo(() => {
+  const [particles] = useState(() => {
     const temp = [];
     for (let i = 0; i < count; i++) {
       temp.push({
@@ -76,7 +76,7 @@ const GroutingParticles: React.FC<{ count?: number }> = ({ count = 100 }) => {
       });
     }
     return temp;
-  }, [count]);
+  });
 
   useFrame(() => {
     if (!mesh.current) return;
@@ -116,15 +116,15 @@ const AntiSlidePiles: React.FC<{ count?: number, length?: number }> = ({ count =
 
 // --- Main Component ---
 
-const Roadbed3DModel: React.FC<Roadbed3DModelProps> = ({ 
-  width = 12, 
-  height = 6, 
-  slopeRatio = 1.5, 
-  diseaseType, 
-  repairMeasure, 
-  viewMode = 'disaster',
-  showParticles = false
-}) => {
+const Roadbed3DModel: React.FC<Roadbed3DModelProps> = (props) => {
+  const { 
+    height = 6, 
+    slopeRatio = 1.5, 
+    diseaseType, 
+    repairMeasure, 
+    viewMode = 'disaster'
+  } = props;
+  
   const topWidth = 10; // Fixed road width for viz
   const bottomWidth = topWidth + 2 * height * slopeRatio;
   

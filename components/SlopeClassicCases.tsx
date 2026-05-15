@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { 
   BookOpen, UploadCloud, Cpu, CheckCircle2, FileText, 
-  MapPin, AlertTriangle, Hammer, Clock, Edit3, Save, X
+  MapPin, AlertTriangle, Hammer, Clock, Save, X, Database
 } from 'lucide-react';
 
 interface ClassicCase {
@@ -210,6 +210,4 @@ const SlopeClassicCases: React.FC = () => {
   );
 };
 
-// 补一个 Database 图标，因为上面少 import 了
-import { Database } from 'lucide-react';
 export default SlopeClassicCases;

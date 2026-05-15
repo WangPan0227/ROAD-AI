@@ -46,14 +46,55 @@ const DisasterSimulation: React.FC<SimulationProps> = ({
 
   const [isDragging, setIsDragging] = useState(false);
   const [lastMouse, setLastMouse] = useState({ x: 0, y: 0 });
-  const [mode, setMode] = useState<'disaster' | 'repair'>(initialMode);
+  const [mode] = useState<'disaster' | 'repair'>(initialMode);
   const [time, setTime] = useState(0); 
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
+  
+  // Track dependencies to reset animation state if they change
+  const [prevDeps, setPrevDeps] = useState(() => ({ mode, measures, disasterType }));
+  if (mode !== prevDeps.mode || measures !== prevDeps.measures || disasterType !== prevDeps.disasterType) {
+    setTime(0);
+    setIsPlaying(true);
+    particlesRef.current = [];
+    setPrevDeps({ mode, measures, disasterType });
+  }
+
   const requestRef = useRef<number | null>(null);
   const particlesRef = useRef<Particle[]>([]);
+  const randomFeatures = useRef<{ cracks: any[], anchors: any[] }>({ cracks: [], anchors: [] });
 
   // Constants
   const FOCAL_LENGTH = 700;
+
+  // Initialize random features once or when key params change
+  useEffect(() => {
+    const cracks = [];
+    for (let i = 0; i < 5; i++) {
+        const segments = [];
+        let curr = { x: -30, y: 0, z: -150 + Math.random() * 300 };
+        for (let j = 0; j < 5; j++) {
+            const next = { 
+                x: curr.x + 15, 
+                z: curr.z + (Math.random() - 0.5) * 20,
+                y: 0 
+            };
+            segments.push({ start: { ...curr }, end: { ...next } });
+            curr = next;
+        }
+        cracks.push(segments);
+    }
+
+    const anchors = [];
+    for (let i = 0; i < 8; i++) {
+        anchors.push({
+            z: -150 + Math.random() * 300,
+            y: Math.random() * 60,
+            depth: 60,
+            angle: 20
+        });
+    }
+    randomFeatures.current = { cracks, anchors };
+  }, [disasterType, subgradeType]);
   
   // Resize Observer
   useEffect(() => {
@@ -102,44 +143,46 @@ const DisasterSimulation: React.FC<SimulationProps> = ({
   const handleMouseUp = () => setIsDragging(false);
 
   // Animation Loop
-  const animate = () => {
-    setTime(prev => {
-      if (prev >= 100) {
-        setIsPlaying(false);
-        return 100;
-      }
-      return prev + 1.0; 
-    });
-    requestRef.current = requestAnimationFrame(animate);
-  };
-
   useEffect(() => {
-    if (isPlaying) requestRef.current = requestAnimationFrame(animate);
-    return () => { if (requestRef.current) cancelAnimationFrame(requestRef.current); };
+    const animate = () => {
+      setTime(prev => {
+        if (prev >= 100) {
+          setIsPlaying(false);
+          return 100;
+        }
+        return prev + 1.0; 
+      });
+      requestRef.current = requestAnimationFrame(animate);
+    };
+
+    if (isPlaying) {
+      requestRef.current = requestAnimationFrame(animate);
+    }
+    return () => { 
+      if (requestRef.current) cancelAnimationFrame(requestRef.current); 
+    };
   }, [isPlaying]);
 
   useEffect(() => {
-    setTime(0);
-    setIsPlaying(true);
-    particlesRef.current = [];
+    // Initial particle reset is handled by state adjustment
   }, [mode, measures, disasterType]);
 
-  // --- 3D Projection Engine ---
-  const project = (p: Point3D, cx: number, cy: number): Point3D | null => {
-    let x = p.x * Math.cos(camera.yaw) - p.z * Math.sin(camera.yaw);
-    let z = p.x * Math.sin(camera.yaw) + p.z * Math.cos(camera.yaw);
-    let y = p.y * Math.cos(camera.pitch) - z * Math.sin(camera.pitch);
-    let z2 = p.y * Math.sin(camera.pitch) + z * Math.cos(camera.pitch);
-    let z_depth = z2 + camera.distance;
+  // --- 3D Projection Logic ---
+  const project = useRef((p: Point3D, cx: number, cy: number, yaw: number, pitch: number, distance: number, panX: number, panY: number): Point3D | null => {
+    const x = p.x * Math.cos(yaw) - p.z * Math.sin(yaw);
+    const z = p.x * Math.sin(yaw) + p.z * Math.cos(yaw);
+    const y = p.y * Math.cos(pitch) - z * Math.sin(pitch);
+    const z2 = p.y * Math.sin(pitch) + z * Math.cos(pitch);
+    const z_depth = z2 + distance;
 
     if (z_depth <= 10) return null;
     const scale = FOCAL_LENGTH / z_depth;
     return {
-      x: cx + x * scale + camera.panX,
-      y: cy + y * scale + camera.panY,
+      x: cx + x * scale + panX,
+      y: cy + y * scale + panY,
       z: z_depth 
     };
-  };
+  }).current;
 
   // --- Rendering ---
   useEffect(() => {
@@ -152,6 +195,8 @@ const DisasterSimulation: React.FC<SimulationProps> = ({
     const H = dimensions.h;
     const CX = W / 2;
     const CY = H / 2;
+
+    // const projectPoint = (p: Point3D) => project(p, CX, CY, camera.yaw, camera.pitch, camera.distance, camera.panX, camera.panY);
 
     // Clear & BG
     ctx.clearRect(0, 0, W, H);
@@ -199,7 +244,6 @@ const DisasterSimulation: React.FC<SimulationProps> = ({
 
     // Helper: Draw Cylinder (Piles/Anchors)
     const drawCylinder = (start: Point3D, end: Point3D, radius: number, color: string) => {
-        const steps = 6;
         const projectedStart = project(start, CX, CY);
         const projectedEnd = project(end, CX, CY);
         if(!projectedStart || !projectedEnd) return;
@@ -247,17 +291,14 @@ const DisasterSimulation: React.FC<SimulationProps> = ({
 
     // Anchors (锚杆) - Perpendicular to slope
     if (measures.some(m => m.name.includes('锚') || m.name.includes('土钉'))) {
-         const anchorCount = 8;
-         for(let i=0; i<anchorCount; i++) {
-             const z = -mL/2 + Math.random() * mL;
-             const y = Math.random() * mH;
-             const xSurface = mW/2 + (y * slope); // Approx surface point
+         randomFeatures.current.anchors.forEach(a => {
+             const xSurface = mW/2 + (a.y * slope); // Approx surface point
              drawCylinder(
-                 {x: xSurface, y: y, z: z},
-                 {x: xSurface - 60, y: y + 20, z: z}, // Into the soil
+                 {x: xSurface, y: a.y, z: a.z},
+                 {x: xSurface - a.depth, y: a.y + a.angle, z: a.z}, // Into the soil
                  2, '#dc2626'
              );
-         }
+         });
     }
 
     // --- 2. Draw Roadbed Mass (Translucent Trapezoid) ---
@@ -270,7 +311,9 @@ const DisasterSimulation: React.FC<SimulationProps> = ({
 
     // Deformation Functions
     const getDeformation = (x: number, y: number, z: number): {dx:number, dy:number, dz:number} => {
-        let dx=0, dy=0, dz=0;
+        let dx=0;
+        let dy=0;
+        const dz=0;
 
         if (disasterType.includes('不均匀沉降')) {
             // Wavy surface
@@ -337,24 +380,21 @@ const DisasterSimulation: React.FC<SimulationProps> = ({
 
     // --- 3. Surface Details (Cracks) ---
     if (disasterType.includes('裂') || disasterType.includes('开裂')) {
-        const crackCount = 5;
         ctx.strokeStyle = '#000';
         ctx.lineWidth = 2;
-        ctx.beginPath();
-        for(let i=0; i<crackCount; i++) {
-            const zStart = tL + Math.random() * mL;
-            let curr = {x: -mW/4, y: topY, z: zStart};
-            const startP = project(applyDef(curr), CX, CY);
-            if(startP) ctx.moveTo(startP.x, startP.y);
-            
-            for(let j=0; j<5; j++) {
-                curr.x += mW/10;
-                curr.z += (Math.random() - 0.5) * 20;
-                const nextP = project(applyDef(curr), CX, CY);
-                if(nextP) ctx.lineTo(nextP.x, nextP.y);
+        randomFeatures.current.cracks.forEach(segments => {
+            ctx.beginPath();
+            const first = segments[0].start;
+            const startP = project(applyDef(first), CX, CY);
+            if(startP) {
+                ctx.moveTo(startP.x, startP.y);
+                segments.forEach((seg: any) => {
+                    const nextP = project(applyDef(seg.end), CX, CY);
+                    if(nextP) ctx.lineTo(nextP.x, nextP.y);
+                });
+                ctx.stroke();
             }
-        }
-        ctx.stroke();
+        });
     }
 
     // --- 4. Particles (Grouting) ---
@@ -400,7 +440,7 @@ const DisasterSimulation: React.FC<SimulationProps> = ({
         particlesRef.current = particlesRef.current.filter(p => p.life > 0);
     }
 
-  }, [dimensions, camera, time, mode, disasterType, subgradeType, severity, measures]);
+  }, [dimensions, camera, time, mode, disasterType, subgradeType, severity, measures, isPlaying, height, project, width]);
 
   return (
     <div 

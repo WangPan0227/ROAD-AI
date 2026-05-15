@@ -63,27 +63,29 @@ const DEFAULT_MEASURES = [
 ];
 
 const RoadbedMeasureLibrary: React.FC = () => {
-  const [measures, setMeasures] = useState<any[]>([]);
+  const [measures, setMeasures] = useState<any[]>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY_MEASURES) : null;
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {
+        console.error("Failed to parse saved roadbed measures", e);
+      }
+    }
+    const initialMeasures = DEFAULT_MEASURES;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY_MEASURES, JSON.stringify(initialMeasures));
+      // Sync economics
+      const ecoConfig: Record<string, [number, number]> = {};
+      initialMeasures.forEach(m => {
+        ecoConfig[m.backendKey] = [m.ecoParams?.costNum || 0, m.ecoParams?.timeNum || 0];
+      });
+      localStorage.setItem(STORAGE_KEY_ECONOMICS, JSON.stringify(ecoConfig));
+    }
+    return initialMeasures;
+  });
   const [selectedId, setSelectedId] = useState<string>('polymer_grout');
   const [isEditing, setIsEditing] = useState(false);
 
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_MEASURES);
-    if (saved) {
-      setMeasures(JSON.parse(saved));
-    } else {
-      setMeasures(DEFAULT_MEASURES);
-      syncEconomicsToEngine(DEFAULT_MEASURES);
-    }
-  }, []);
-
-  const syncEconomicsToEngine = (data: any[]) => {
-      const ecoConfig: Record<string, [number, number]> = {};
-      data.forEach(m => {
-          ecoConfig[m.backendKey] = [m.ecoParams?.costNum || 0, m.ecoParams?.timeNum || 0];
-      });
-      localStorage.setItem(STORAGE_KEY_ECONOMICS, JSON.stringify(ecoConfig));
-  };
+  useEffect(() => {}, []);
 
   const selectedMeasure = measures.find(m => m.id === selectedId) || DEFAULT_MEASURES[0];
 

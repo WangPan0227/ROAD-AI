@@ -38,19 +38,22 @@ const colorMap: Record<string, any> = {
 };
 
 const TunnelDiseaseAtlas: React.FC = () => {
-  const [matrix, setMatrix] = useState<any[]>([]);
+  const [matrix, setMatrix] = useState<any[]>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY_DISEASE) : null;
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {
+        console.error("Failed to parse saved tunnel disease matrix", e);
+      }
+    }
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY_DISEASE, JSON.stringify(DEFAULT_MATRIX));
+    }
+    return DEFAULT_MATRIX;
+  });
   const [showDeveloperMode, setShowDeveloperMode] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_DISEASE);
-    if (saved) {
-      setMatrix(JSON.parse(saved));
-    } else {
-      setMatrix(DEFAULT_MATRIX);
-      localStorage.setItem(STORAGE_KEY_DISEASE, JSON.stringify(DEFAULT_MATRIX));
-    }
-  }, []);
+  useEffect(() => {}, []);
 
   const handleSave = () => {
     localStorage.setItem(STORAGE_KEY_DISEASE, JSON.stringify(matrix));
@@ -127,7 +130,7 @@ const TunnelDiseaseAtlas: React.FC = () => {
                                             {isEditing ? (
                                                 <input type="number" step="0.05" className="w-20 bg-white border border-slate-300 rounded p-1 text-slate-800 font-bold text-center" value={item.schema.max_deep_rate} onChange={e => updateSchema(item.id, 'max_deep_rate', parseFloat(e.target.value))} />
                                             ) : (
-                                                <span className="text-2xl font-black text-slate-800 font-mono">{(item.schema.max_deep_rate * 100).toFixed(0)}%</span>
+                                                <span className="text-2xl font-black text-slate-800 font-mono">{((item.schema?.max_deep_rate ?? 0) * 100).toFixed(0)}%</span>
                                             )}
                                         </div>
                                     </div>
@@ -152,7 +155,7 @@ const TunnelDiseaseAtlas: React.FC = () => {
   "trigger_condition": {
     "metric": "deep_rate",
     "operator": "<",
-    "value": ${item.schema.max_deep_rate.toFixed(2)}
+    "value": ${(item.schema?.max_deep_rate ?? 0).toFixed(2)}
   },
   "fatal_flag": {
     "has_debris": ${item.schema.allows_debris}

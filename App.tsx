@@ -1,12 +1,11 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
-  Layout, Database, FileText, Activity, MessageSquare, 
-  Layers, Settings, BarChart2, BookOpen, PenTool,
-  ChevronRight, Map, Construction, Mountain, ClipboardList,
-  History, ShieldCheck, Microscope
+  Layers, Settings, BookOpen,
+  Map, Mountain, ClipboardList,
+  History, ShieldCheck, Microscope, Activity, MessageSquare,
+  Construction
 } from 'lucide-react';
-import SmartDecisionModel from './components/SmartDecisionModel';
 import SlopeAnalysis from './components/SlopeAnalysis';
 import HistoryLibrary from './components/HistoryLibrary';
 import CaseGenerator from './components/CaseGenerator';
@@ -52,10 +51,12 @@ import { Tab, InfrastructureState, InfrastructureCategory, InfrastructureSubCate
 
 // Placeholder components for those not fully implemented in this turn
 const Placeholder: React.FC<{title: string}> = ({title}) => (
-    <div className="flex items-center justify-center h-full text-gray-400 flex-col">
-        <Settings className="w-12 h-12 mb-4 opacity-20" />
-        <h3 className="text-xl font-bold">{title}</h3>
-        <p className="text-sm mt-2">Component under maintenance</p>
+    <div className="flex items-center justify-center h-full text-slate-400 flex-col bg-slate-50 font-sans border border-slate-200 m-8 rounded-xl shadow-sm">
+        <div className="relative">
+          <Settings className="w-12 h-12 mb-4 opacity-10 animate-spin-slow text-blue-600" />
+        </div>
+        <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-slate-600">{title}</h3>
+        <p className="text-[10px] mt-2 font-mono uppercase tracking-widest opacity-50">Module Initialization Required // DEV_READY</p>
     </div>
 );
 
@@ -110,6 +111,8 @@ const App: React.FC = () => {
         return <RoadbedMeasureLibrary />;
       case Tab.RoadbedDiseaseAtlas:
         return <RoadbedDiseaseAtlas />;
+      case Tab.RoadbedClassicCases:
+        return <RoadbedClassicCases />;
       // Retaining Specific Modules
       case Tab.RetainingAnalysis:
         return <RetainingAnalysis />;
@@ -270,27 +273,27 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100 font-sans text-gray-900 overflow-hidden">
-      {/* Sidebar */}
-      <div className="w-64 bg-slate-900 text-white flex flex-col shadow-xl z-30">
-        <div className="flex items-center justify-center h-20 border-b border-slate-800 bg-slate-900/50">
-          <div className="flex items-center space-x-3">
-            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-2 rounded-xl shadow-lg shadow-blue-900/20">
-              <Layers className="w-6 h-6 text-white" />
+    <div className="flex h-screen bg-slate-50 font-sans text-slate-800 overflow-hidden relative selection:bg-blue-100">
+      {/* Sidebar - Property Inspector Style */}
+      <div className="w-64 bg-white border-r border-slate-200 flex flex-col z-30 relative overflow-hidden">
+        <div className="flex flex-col items-start justify-center h-16 px-6 border-b border-slate-200 bg-white relative z-10">
+          <div className="flex items-center space-x-2.5">
+            <div className="bg-gradient-to-br from-blue-500 to-blue-700 p-1.5 rounded-lg shadow-sm">
+              <Layers className="w-4 h-4 text-white" />
             </div>
             <div className="flex flex-col">
-              <h1 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-300 tracking-tight">
-                InfraGuard <span className="text-blue-400">AI</span>
+              <h1 className="text-lg font-black text-slate-900 tracking-tight leading-none">
+                InfraGuard <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">AI</span>
               </h1>
-              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-0.5">
-                结构智能仿真与加固模拟平台
-              </span>
+              <span className="text-[10px] text-slate-500 tracking-widest mt-1 font-medium whitespace-nowrap">结构灾毁智能仿真与加固模拟平台</span>
             </div>
           </div>
         </div>
         
-        <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1">
-          <div className="text-xs font-bold text-slate-500 uppercase px-3 mb-2 mt-2">Core Modules</div>
+        <nav className="flex-1 overflow-y-auto py-4 space-y-1 custom-scrollbar">
+          <div className="px-6 py-2">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Analysis Explorer</span>
+          </div>
           
           <button 
             onClick={() => {
@@ -304,48 +307,68 @@ const App: React.FC = () => {
               else if (activeInfrastructure.subCategory === 'collapse_block') handleTabChange(Tab.TunnelCollapseAnalysis);
               else handleTabChange(Tab.DecisionModel);
             }}
-            className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+            className={`w-full flex items-center px-6 py-2.5 text-xs font-semibold transition-all border-r-4 ${
               (currentTab === Tab.DecisionModel || currentTab === Tab.RoadbedAnalysis || currentTab === Tab.BridgeAnalysis || currentTab === Tab.BridgeGirderAnalysis || currentTab === Tab.BridgeComponentAnalysis || currentTab === Tab.TunnelAnalysis || currentTab === Tab.TunnelVoidAnalysis || currentTab === Tab.TunnelCollapseAnalysis) 
-              ? 'bg-blue-600 text-white shadow-md shadow-blue-900/20' 
-              : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+              ? 'bg-blue-50/50 text-blue-700 border-blue-600 shadow-[inset_0_0_10px_rgba(59,130,246,0.05)]' 
+              : 'text-slate-500 hover:bg-slate-50 border-transparent hover:text-slate-700'
             }`}
           >
             <Activity className="w-4 h-4 mr-3" />
-            仿真模拟分析
+            <span>Simulation Engine</span>
           </button>
 
-          <div className="text-xs font-bold text-slate-500 uppercase px-3 mb-2 mt-6">Knowledge Base</div>
+          <div className="px-6 py-2 mt-4">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Knowledge Matrix</span>
+          </div>
 
-          {activeMenu.map((item) => (
-            <button 
-              key={item.id}
-              onClick={() => handleTabChange(item.id)}
-              className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${currentTab === item.id ? 'bg-blue-600 text-white shadow-md shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-            >
-              <item.icon className="w-4 h-4 mr-3" />
-              {item.label}
-            </button>
-          ))}
+          <div className="space-y-1">
+            {activeMenu.map((item) => (
+              <button 
+                key={item.id}
+                onClick={() => handleTabChange(item.id)}
+                className={`w-full flex items-center px-6 py-2 text-[11px] font-medium transition-all border-r-4 ${
+                  currentTab === item.id 
+                  ? 'bg-blue-50/50 text-blue-700 border-blue-600' 
+                  : 'text-slate-500 hover:bg-slate-50 border-transparent'
+                }`}
+              >
+                <item.icon className={`w-3.5 h-3.5 mr-3 ${currentTab === item.id ? 'opacity-100' : 'opacity-40'}`} />
+                {item.label}
+              </button>
+            ))}
+          </div>
 
-          <div className="mt-auto pt-6 border-t border-slate-800">
+          <div className="mt-8 px-4">
              <button 
                 onClick={() => handleTabChange(Tab.Chatbot)}
-                className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${currentTab === Tab.Chatbot ? 'bg-blue-600 text-white shadow-md shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                className={`w-full flex items-center px-6 py-3 text-xs font-bold uppercase transition-all rounded-xl border shadow-sm ${
+                  currentTab === Tab.Chatbot 
+                  ? 'bg-slate-900 text-white border-slate-800 shadow-slate-900/20' 
+                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
+                }`}
               >
                 <MessageSquare className="w-4 h-4 mr-3" />
-                智能问答助手
+                Expert AI Console
               </button>
           </div>
         </nav>
+        
+        {/* Environment Status */}
+        <div className="p-4 bg-slate-50/50 border-t border-slate-100 mt-auto">
+          <div className="flex items-center space-x-2">
+            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">System Status: Nominal</span>
+          </div>
+        </div>
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Header */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center px-6 shadow-sm z-20">
+      <div className="flex-1 flex flex-col overflow-hidden relative">
+        {/* Top Header - Ribbon Style */}
+        <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center px-8 z-20">
           <div className="flex items-center space-x-8">
             {/* Category Selector */}
-            <div className="flex items-center space-x-1 bg-gray-100 p-1 rounded-lg">
+            <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200 shadow-inner">
               {categories.map((cat) => (
                 <button
                   key={cat.id}
@@ -353,57 +376,55 @@ const App: React.FC = () => {
                     category: cat.id, 
                     subCategory: subCategories[cat.id][0].id 
                   })}
-                  className={`flex items-center px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                  className={`flex items-center px-5 py-2 text-xs font-bold transition-all rounded-lg ${
                     activeInfrastructure.category === cat.id
-                      ? 'bg-white text-blue-600 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
+                      ? 'bg-white text-blue-700 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
-                  <cat.icon className="w-3.5 h-3.5 mr-1.5" />
+                  <cat.icon className="w-4 h-4 mr-2.5" />
                   {cat.name}
                 </button>
               ))}
             </div>
 
-            <ChevronRight className="w-4 h-4 text-gray-300" />
-
             {/* SubCategory Selector */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-6">
               {subCategories[activeInfrastructure.category].map((sub) => (
                 <button
                   key={sub.id}
                   onClick={() => setActiveInfrastructure({ ...activeInfrastructure, subCategory: sub.id })}
-                  className={`relative py-5 text-sm font-bold transition-all ${
+                  className={`relative py-1 text-xs font-bold transition-all ${
                     activeInfrastructure.subCategory === sub.id
                       ? 'text-blue-600'
-                      : 'text-gray-400 hover:text-gray-600'
+                      : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >
                   <div className="flex items-center">
-                    <sub.icon className="w-4 h-4 mr-2" />
+                    <sub.icon className="w-3.5 h-3.5 mr-2" />
                     {sub.name}
                   </div>
                   {activeInfrastructure.subCategory === sub.id && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full" />
+                    <div className="absolute -bottom-5 left-0 right-0 h-1 bg-blue-600 rounded-t-full shadow-[0_-2px_6px_rgba(37,99,235,0.4)]" />
                   )}
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="ml-auto flex items-center space-x-4">
-            <div className="flex items-center text-xs text-gray-400 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">
-              <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse" />
-              系统运行正常
+          <div className="ml-auto flex items-center space-x-6">
+            <div className="flex items-center px-4 py-1.5 bg-slate-50 rounded-lg border border-slate-200 shadow-inner">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-mono">Engine: V5.0.0-ENT</span>
             </div>
-            <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all">
+
+            <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all border border-transparent hover:border-slate-200">
               <Settings className="w-5 h-5" />
             </button>
           </div>
         </header>
 
         {/* Content Area */}
-        <main className="flex-1 overflow-hidden relative">
+        <main className="flex-1 overflow-hidden relative bg-slate-50">
           {renderContent()}
         </main>
       </div>

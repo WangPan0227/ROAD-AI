@@ -19,21 +19,22 @@ interface TunnelTypicalCase {
 const STORAGE_KEY = 'roadbedguard_tunnel_typical_cases_v1';
 
 const TunnelTypicalCases: React.FC = () => {
-  const [cases, setCases] = useState<TunnelTypicalCase[]>([]);
+  const [cases, setCases] = useState<TunnelTypicalCase[]>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {
+        console.error("Failed to parse saved tunnel typical cases", e);
+      }
+    }
+    return [
+      { id: '1', name: '某深埋高速公路隧道实测压力', source: '《岩石力学与工程学报》', rockClass: 4, B: 10.5, H: 120.0, gamma: 22.0, refPressure: 155.0 },
+      { id: '2', name: '浅埋偏压隧道土压力盒监测数据', source: '某省交投监控年报', rockClass: 5, B: 12.0, H: 18.0, gamma: 20.0, refPressure: 360.0 },
+    ];
+  });
   const [isComputing, setIsComputing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try { setCases(JSON.parse(saved)); } catch (e) {}
-    } else {
-      setCases([
-        { id: '1', name: '某深埋高速公路隧道实测压力', source: '《岩石力学与工程学报》', rockClass: 4, B: 10.5, H: 120.0, gamma: 22.0, refPressure: 155.0 },
-        { id: '2', name: '浅埋偏压隧道土压力盒监测数据', source: '某省交投监控年报', rockClass: 5, B: 12.0, H: 18.0, gamma: 20.0, refPressure: 360.0 },
-      ]);
-    }
-  }, []);
+  useEffect(() => {}, []);
 
   const computedCases = cases.filter(c => c.calcPressure !== undefined);
   const qualifiedCases = computedCases.filter(c => c.error !== undefined && c.error <= 15);
@@ -84,7 +85,7 @@ const TunnelTypicalCases: React.FC = () => {
           <div className="flex items-center justify-center">
             {isQualified ? <ShieldCheck className="w-10 h-10 text-green-500 mr-3" /> : <AlertTriangle className="w-10 h-10 text-red-500 mr-3" />}
             <span className={`text-5xl font-black ${computedCases.length === 0 ? 'text-gray-300' : (isQualified ? 'text-green-600' : 'text-red-600')}`}>
-              {computedCases.length === 0 ? '--' : `${confidenceScore.toFixed(1)}%`}
+              {computedCases.length === 0 ? '--' : `${(confidenceScore ?? 0).toFixed(1)}%`}
             </span>
           </div>
           <div className="text-xs font-bold text-gray-600 mt-3">{qualifiedCases.length} / {computedCases.length} 算例合格</div>
@@ -130,16 +131,16 @@ const TunnelTypicalCases: React.FC = () => {
                       </div>
                     </td>
                     <td className="p-3 text-center align-middle bg-slate-50">
-                      <span className="font-bold text-slate-700">{c.refPressure.toFixed(1)}</span>
+                      <span className="font-bold text-slate-700">{(c.refPressure ?? 0).toFixed(1)}</span>
                     </td>
                     <td className="p-3 text-center align-middle font-mono font-bold text-emerald-700 text-lg">
-                      {c.calcPressure !== undefined ? c.calcPressure.toFixed(1) : '-'}
+                      {c.calcPressure !== undefined ? (c.calcPressure ?? 0).toFixed(1) : '-'}
                     </td>
                     <td className="p-3 text-center align-middle">
                       {c.error !== undefined ? (
                         <div className={`inline-flex items-center p-1 px-2 rounded text-xs font-bold ${c.error <= 15 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                           {c.error <= 15 ? <CheckCircle2 className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
-                          {c.error.toFixed(1)}%
+                          {(c.error ?? 0).toFixed(1)}%
                         </div>
                       ) : '-'}
                     </td>

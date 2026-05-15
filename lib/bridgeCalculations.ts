@@ -22,17 +22,17 @@ export interface BridgeEcoConfig {
  * 1. 核心计算模块：计算单柱抗剪承载力 Vn
  */
 export const calculate_vn = (p: BridgeEngineParams & { damage_factor?: number }) => {
-  let rho_st = (4 * p.Ast) / (p.s * p.D_prime);
+  let rho_st = (4 * p.Ast) / Math.max(0.001, p.s * p.D_prime);
   if (rho_st > 2.4 / p.fyt) rho_st = 2.4 / p.fyt;
 
   let lamda = (rho_st * p.fyt) / 10 + 0.38 - 0.1 * p.miu_d;
   lamda = Math.max(0.03, Math.min(0.3, lamda));
 
-  let vc = lamda * (1 + p.Nmin / (1.38 * p.Ag)) * Math.sqrt(p.fc);
+  let vc = lamda * (1 + p.Nmin / Math.max(0.001, 1.38 * p.Ag)) * Math.sqrt(p.fc);
   vc = Math.max(vc, 0.355 * Math.sqrt(p.fc), 1.47 * lamda * Math.sqrt(p.fc));
 
   const Vc = 0.1 * vc * p.Ae;
-  const Vs = 0.1 * (Math.PI / 2) * p.Ast * p.fyt * p.D_prime / p.s;
+  const Vs = 0.1 * (Math.PI / 2) * p.Ast * p.fyt * p.D_prime / Math.max(0.001, p.s);
 
   const totalVn = Vc + Vs;
   return { 
@@ -62,11 +62,11 @@ export const calculate_bridge_impact = (params: BridgeEngineParams & { damage_fa
   let Fs: number, delta_s: number;
 
   if (Ek < Ek1) {
-    Fs = (Fs1 / Ek1) * Ek;
-    delta_s = (Fs / Fs1) * delta_s1;
+    Fs = (Fs1 / Math.max(0.01, Ek1)) * Ek;
+    delta_s = (Fs / Math.max(0.01, Fs1)) * delta_s1;
   } else if (Ek < Ek2) {
-    Fs = Fs1 + ((Fs2 - Fs1) / (Ek2 - Ek1)) * (Ek - Ek1);
-    delta_s = ((Fs - Fs1) * (delta_s2 - delta_s1)) / (Fs2 - Fs1) + delta_s1;
+    Fs = Fs1 + ((Fs2 - Fs1) / Math.max(0.01, Ek2 - Ek1)) * (Ek - Ek1);
+    delta_s = ((Fs - Fs1) * (delta_s2 - delta_s1)) / Math.max(0.01, Fs2 - Fs1) + delta_s1;
   } else {
     Fs = Fs2;
     delta_s = delta_s2;
@@ -75,7 +75,7 @@ export const calculate_bridge_impact = (params: BridgeEngineParams & { damage_fa
   return {
     Fs,
     delta_s_cm: delta_s * 100, 
-    alpha_D: delta_s / D,
+    alpha_D: delta_s / Math.max(0.001, D),
     Vn, Vc, Vs
   };
 };
@@ -100,7 +100,7 @@ export const optimize_bridge_reinforcement = (
   schemes.push({
       id: 'S1', name: '方案一：碳纤维 (CFRP) 环向包裹',
       measures: ['CFRP抗剪增强'],
-      cost: area_cfrp * price_cfrp, time: area_cfrp / eff_cfrp,
+      cost: area_cfrp * price_cfrp, time: area_cfrp / Math.max(0.01, eff_cfrp),
       finalAlphaD: res_1.alpha_D, finalDisp: res_1.delta_s_cm,
       desc: '通过环向强约束提升抗剪上限与结构延性，施工快捷，不改变桥下通航净空。'
   });
@@ -114,7 +114,7 @@ export const optimize_bridge_reinforcement = (
   schemes.push({
       id: 'S2', name: '方案二：外包钢管混凝土套裙',
       measures: ['增大截面', '钢管约束'],
-      cost: length_jacket * price_jacket, time: length_jacket / eff_jacket,
+      cost: length_jacket * price_jacket, time: length_jacket / Math.max(0.01, eff_jacket),
       finalAlphaD: res_2.alpha_D, finalDisp: res_2.delta_s_cm,
       desc: '提供绝对的刚度与抗力双重保障，适用于存在严重重载撞击风险的航道墩柱。'
   });
@@ -125,7 +125,7 @@ export const optimize_bridge_reinforcement = (
   schemes.push({
       id: 'S3', name: '方案三：复合材料柔性防撞套箱',
       measures: ['耗能缓冲', '撞击隔离'],
-      cost: 2 * price_fender, time: 2 / eff_fender, 
+      cost: 2 * price_fender, time: 2 / Math.max(0.01, eff_fender), 
       finalAlphaD: res_3.alpha_D, finalDisp: res_3.delta_s_cm,
       desc: '“以柔克刚”，在撞击发生瞬间吸收并耗散极大的动能，治标治本。'
   });
@@ -147,7 +147,7 @@ export const calculate_girder_unseating = (params: {
   // 规范建议最小支承长度 N_req = (70 + 0.5 * L) * 0.1 (单位换算为 cm 还是 m？通常规范为 mm, 这里假设 overlap 输入为 cm)
   const N_req = 70 + 0.5 * params.span; // 单位 cm
   const remaining = params.overlap - params.displacement;
-  const risk_ratio = params.displacement / params.overlap;
+  const risk_ratio = params.displacement / Math.max(0.001, params.overlap);
   const is_unseated = remaining <= 0;
   
   return {
@@ -167,7 +167,7 @@ export const calculate_bridge_component_damage = (params: {
   corrosion_area_ratio: number // 锈蚀面积比 (0-1)
 }) => {
   // 简化折减模型
-  const factor_depth = Math.max(0.5, 1 - params.reinforcement_depth / 50); 
+  const factor_depth = Math.max(0.5, 1 - params.reinforcement_depth / 50.0); 
   const factor_corrosion = Math.max(0.4, 1 - params.corrosion_area_ratio * 0.8);
   const damage_factor = factor_depth * factor_corrosion;
   

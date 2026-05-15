@@ -31,23 +31,17 @@ export const calculate_tunnel_pressure = (p: TunnelEngineParams) => {
   const isDeep = p.H > h_critical;
 
   // 3. 垂直围岩压力 q (kPa)
-  let q_kPa = 0;
-  if (isDeep) {
-    q_kPa = p.gamma * hq;
-  } else {
-    // 浅埋非偏压近似计算
-    q_kPa = p.gamma * p.H;
-  }
+  const q_kPa = isDeep ? (p.gamma * hq) : (p.gamma * p.H);
 
   // 4. 侧向围岩压力 e (kPa)
   // 采用泊松比估算侧压力系数 lambda
-  const lambda = p.mu / (1 - p.mu);
+  const lambda = p.mu / Math.max(0.01, 1 - p.mu);
   const e_up_kPa = q_kPa * lambda;
   const e_down_kPa = (isDeep ? (p.gamma * (hq + p.Ht)) : (p.gamma * (p.H + p.Ht))) * lambda;
 
   // 5. 衬砌损伤程度判定 (Deep Rate)
-  let deep_rate = p.dCrack / p.dLining;
-  let damage_level = 1; // 1:轻微, 2:中度, 3:严重, 4:灾难性
+  const deep_rate = p.dCrack / Math.max(0.01, p.dLining);
+  let damage_level: number; // 1:轻微, 2:中度, 3:严重, 4:灾难性
 
   if (p.hasDebris || deep_rate >= 0.7) {
     damage_level = 4;
@@ -98,7 +92,7 @@ export const optimize_tunnel_reinforcement = (
   schemes.push({
       id: 'S1', name: '方案一：高聚物无损注浆',
       measures: ['脱空回填', '裂缝封闭'],
-      cost: grout_weight * price_grout, time: grout_weight / eff_grout,
+      cost: grout_weight * price_grout, time: grout_weight / Math.max(0.01, eff_grout),
       finalHealth: res_1.health_score,
       desc: '速凝高聚物材料回填脱空并封闭裂隙，恢复二衬受力整体性，不侵入建筑限界。'
   });
@@ -111,7 +105,7 @@ export const optimize_tunnel_reinforcement = (
   schemes.push({
       id: 'S2', name: '方案二：钢拱架强力支护',
       measures: ['刚性支撑', '限界侵入'],
-      cost: arch_length * price_steel, time: arch_length / eff_steel,
+      cost: arch_length * price_steel, time: arch_length / Math.max(0.01, eff_steel),
       finalHealth: Math.min(100, res_2.health_score + 40), // 强行补偿40%健康度
       desc: '提供绝对的刚度支撑，适用于衬砌大范围开裂且围岩压力持续增大的危险工况，但会侵入净空。'
   });
@@ -124,7 +118,7 @@ export const optimize_tunnel_reinforcement = (
   schemes.push({
       id: 'S3', name: '方案三：挂网喷射混凝土',
       measures: ['表面防护', '厚度补偿'],
-      cost: area_shotcrete * price_shotcrete, time: area_shotcrete / eff_shotcrete,
+      cost: area_shotcrete * price_shotcrete, time: area_shotcrete / Math.max(0.01, eff_shotcrete),
       finalHealth: res_3.health_score,
       desc: '抑制表面深度劣化并增加有效厚度，适用于掉块频发但整体未失稳的区段。'
   });
@@ -167,9 +161,9 @@ export const calculate_tunnel_collapse = (params: {
   const f_map: Record<number, number> = { 1: 10, 2: 6, 3: 4, 4: 1.5, 5: 0.8, 6: 0.4 };
   const f = f_map[params.rockClass] || 0.5;
   
-  const hq = (params.B / 2) / f; 
+  const hq = (params.B / 2) / Math.max(0.01, f); 
   const volume = 0.66 * params.B * hq * params.collapse_length;
-  const blockage_ratio = Math.min(100, (hq / params.Ht) * 100);
+  const blockage_ratio = Math.min(100, (hq / Math.max(0.01, params.Ht)) * 100);
   
   return {
     hq,

@@ -31,19 +31,22 @@ const colorMap: Record<string, any> = {
 };
 
 const BridgeDiseaseAtlas: React.FC = () => {
-  const [matrix, setMatrix] = useState<any[]>([]);
+  const [matrix, setMatrix] = useState<any[]>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY_DISEASE) : null;
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {
+        console.error("Failed to parse saved bridge disease matrix", e);
+      }
+    }
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY_DISEASE, JSON.stringify(DEFAULT_MATRIX));
+    }
+    return DEFAULT_MATRIX;
+  });
   const [showDeveloperMode, setShowDeveloperMode] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_DISEASE);
-    if (saved) {
-      setMatrix(JSON.parse(saved));
-    } else {
-      setMatrix(DEFAULT_MATRIX);
-      localStorage.setItem(STORAGE_KEY_DISEASE, JSON.stringify(DEFAULT_MATRIX));
-    }
-  }, []);
+  useEffect(() => {}, []);
 
   const handleSave = () => {
     localStorage.setItem(STORAGE_KEY_DISEASE, JSON.stringify(matrix));
@@ -134,7 +137,7 @@ const BridgeDiseaseAtlas: React.FC = () => {
                                         {isEditing ? (
                                             <input type="number" step="0.01" min="0" className="w-20 bg-white border border-indigo-300 rounded p-1 text-indigo-700 font-bold text-center" value={item.schema?.min_alpha || 0} onChange={e => updateSchema(item.id, 'min_alpha', parseFloat(e.target.value))} />
                                         ) : (
-                                            <span className="text-2xl font-black text-indigo-700 font-mono">{(item.schema?.min_alpha || 0).toFixed(2)}</span>
+                                            <span className="text-2xl font-black text-indigo-700 font-mono">{(item.schema?.min_alpha ?? 0).toFixed(2)}</span>
                                         )}
                                     </div>
                                 </div>
@@ -152,11 +155,11 @@ const BridgeDiseaseAtlas: React.FC = () => {
   "trigger_condition": {
     "metric": "alpha_D",
     "operator": ">=",
-    "value": ${(item.schema?.min_alpha || 0).toFixed(2)}
+    "value": ${(item.schema?.min_alpha ?? 0).toFixed(2)}
   },
   "structural_state": {
-    "plastic_hinge": ${(item.schema?.min_alpha || 0) >= 0.1 ? 'true' : 'false'},
-    "steel_yield": ${(item.schema?.min_alpha || 0) >= 0.02 ? 'true' : 'false'}
+    "plastic_hinge": ${(item.schema?.min_alpha ?? 0) >= 0.1 ? 'true' : 'false'},
+    "steel_yield": ${(item.schema?.min_alpha ?? 0) >= 0.02 ? 'true' : 'false'}
   }
 }`}
                                 </pre>

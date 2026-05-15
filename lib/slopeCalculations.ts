@@ -44,7 +44,7 @@ class StructureLib {
     static get_pile_bending_capacity(D: number, t_wall = 0.012, mat_key: 'Steel_Q345' | 'Strand_1860' = "Steel_Q345") {
         const f_y = MATERIAL_LIB[mat_key].f_y;
         const d = Math.max(D - 2 * t_wall, 0.001);
-        return f_y * (Math.PI * (Math.pow(D, 4) - Math.pow(d, 4)) / (32 * D));
+        return f_y * (Math.PI * (Math.pow(D, 4) - Math.pow(d, 4)) / Math.max(0.01, 32 * D));
     }
 
     static get_anchor_tensile_capacity(d_diameter = 0.0152, count = 2, mat_key: 'Steel_Q345' | 'Strand_1860' = "Strand_1860") {
@@ -106,7 +106,7 @@ export const compute_stability = (geom_func: (x: number) => number, H_max: numbe
                 const x_slip = x_samples.filter(x => (Yc - Math.sqrt(Math.max(0, R * R - Math.pow(x - Xc, 2)))) < geom_func(x));
                 
                 if (x_slip.length < 3) continue;
-                let x_start = x_slip[0];
+                const x_start = x_slip[0];
                 let x_end = x_slip[x_slip.length - 1];
 
                 // 剔除过浅的无意义滑面 (防止出现剥落式假滑面)
@@ -188,10 +188,10 @@ export const compute_stability = (geom_func: (x: number) => number, H_max: numbe
                     R_resist = 0.0;
                     for (const s of slices) {
                         const N_eff = Math.max(s.W - s.u * s.b * Math.cos(s.alpha) - seismic.k_h * s.W * Math.sin(s.alpha), 0.0);
-                        const m_alpha = Math.max(0.01, Math.cos(s.alpha) * (1.0 + Math.tan(s.alpha) * Math.tan(s.phi) / FS_calc));
+                        const m_alpha = Math.max(0.01, Math.cos(s.alpha) * (1.0 + Math.tan(s.alpha) * Math.tan(s.phi) / Math.max(0.01, FS_calc)));
                         R_resist += (s.c * s.b + N_eff * Math.tan(s.phi)) / m_alpha;
                     }
-                    const FS_new = R_resist / T_drive;
+                    const FS_new = R_resist / Math.max(0.01, T_drive);
                     if (Math.abs(FS_new - FS_calc) < 1e-3) break;
                     FS_calc = FS_new;
                 }
@@ -228,8 +228,8 @@ const calc_structural_compensation = (
     let best_p_cost = Infinity, best_p_sol = null;
     for (const L of [8, 10, 12, 15]) {
         for (const spacing of [1.0, 1.2, 1.5]) {
-            const Q_single = Math.min(Math.max((L - slip_depth) * 60.0, 0.0), M_u / (slip_depth / 2 + 0.1));
-            const R_prov = Q_single / spacing;
+            const Q_single = Math.min(Math.max((L - slip_depth) * 60.0, 0.0), M_u / Math.max(0.01, slip_depth / 2 + 0.1));
+            const R_prov = Q_single / Math.max(0.01, spacing);
             if (R_prov >= R_req_unit) {
                 const n_total = Math.floor(W_slope / spacing) + 1;
                 const cost = geo_cost + (n_total * L * eco.cost_pile[0] / 10000);
@@ -256,7 +256,7 @@ const calc_structural_compensation = (
     for (const L_bond of [6, 8, 10]) {
         for (const spacing of [1.5, 2.0, 2.5]) {
             const T_design = Math.min(Math.PI * 0.15 * L_bond * tau, T_struct) / 1.5;
-            const R_prov = (T_design * Math.cos((15 - 30) * Math.PI / 180)) / spacing;
+            const R_prov = (T_design * Math.cos((15 - 30) * Math.PI / 180)) / Math.max(0.01, spacing);
             if (R_prov >= R_req_unit) {
                 const total_L = (L_bond + 5) * (Math.floor(W_slope / spacing) + 1);
                 const cost = geo_cost + (total_L * eco.cost_anchor[0] / 10000);
@@ -284,13 +284,13 @@ const calc_structural_compensation = (
         let best_half_p_cost = Infinity, best_half_p_params: any = null;
         for (const L of [8, 10, 12]) {
             for (const spacing of [1.5, 2.0]) {
-                const Q_single = Math.min(Math.max((L - slip_depth) * 60.0, 0.0), M_u / (slip_depth / 2 + 0.1));
-                if (Q_single / spacing >= R_req_half) {
+                const Q_single = Math.min(Math.max((L - slip_depth) * 60.0, 0.0), M_u / Math.max(0.01, slip_depth / 2 + 0.1));
+                if (Q_single / Math.max(0.01, spacing) >= R_req_half) {
                     const n_t = Math.floor(W_slope / spacing) + 1;
                     const c = n_t * L * eco.cost_pile[0] / 10000;
                     if (c < best_half_p_cost) {
                         best_half_p_cost = c;
-                        best_half_p_params = { L, s: spacing, R: Q_single / spacing, time: n_t * L / eco.cost_pile[1] };
+                        best_half_p_params = { L, s: spacing, R: Q_single / Math.max(0.01, spacing), time: n_t * L / Math.max(0.01, eco.cost_pile[1]) };
                     }
                 }
             }
@@ -300,13 +300,13 @@ const calc_structural_compensation = (
         for (const L_bond of [4, 6, 8]) {
             for (const spacing of [2.0, 2.5, 3.0]) {
                 const T_design = Math.min(Math.PI * 0.15 * L_bond * tau, T_struct) / 1.5;
-                const R_prov = (T_design * Math.cos((15 - 30) * Math.PI / 180)) / spacing;
+                const R_prov = (T_design * Math.cos((15 - 30) * Math.PI / 180)) / Math.max(0.01, spacing);
                 if (R_prov >= R_req_half) {
                     const t_L = (L_bond + 5) * (Math.floor(W_slope / spacing) + 1);
                     const c = t_L * eco.cost_anchor[0] / 10000;
                     if (c < best_half_a_cost) {
                         best_half_a_cost = c;
-                        best_half_a_params = { Lb: L_bond, s: spacing, R: R_prov, time: t_L / eco.cost_anchor[1] };
+                        best_half_a_params = { Lb: L_bond, s: spacing, R: R_prov, time: t_L / Math.max(0.01, eco.cost_anchor[1]) };
                     }
                 }
             }
@@ -373,12 +373,13 @@ export const eval_all_combinations_matrix = (geom: any, cfg: any, target_FS: num
 
     // 状态 A3/A4：坡脚压重
     for (const [H_b, B_b] of [[2.0, 3.0], [3.0, 5.0]]) {
-        const berm_geom = (x: number) => Math.max(orig_geom(x), x <= B_b ? H_b : Math.max(0, H_b - (x - B_b) * Math.tan(geom.beta * Math.PI / 180)));
+        const tan_beta = Math.max(0.01, Math.tan(geom.beta * Math.PI / 180));
+        const berm_geom = (x: number) => Math.max(orig_geom(x), x <= B_b ? H_b : Math.max(0, H_b - (x - B_b) * tan_beta));
         const { min_FS: FS_b, best_T: T_b, best_R: R_b, best_slip_depth: slip_b, best_circle: circ_b } = compute_stability(berm_geom, geom.H, geom.beta * Math.PI / 180, cfg);
         
-        const vol_b = (H_b * B_b + 0.5 * H_b * (H_b / Math.tan(geom.beta * Math.PI / 180))) * geom.W_slope;
+        const vol_b = (H_b * B_b + 0.5 * H_b * (H_b / tan_beta)) * geom.W_slope;
         const cost_b = vol_b * eco.cost_berm[0] / 10000;
-        const time_b = vol_b / eco.cost_berm[1];
+        const time_b = vol_b / Math.max(0.01, eco.cost_berm[1]);
         const param_b = `压重(${H_b}x${B_b})\n`;
         const plot_data_b = { type: "berm", H: H_b, B: B_b, circle: circ_b };
 

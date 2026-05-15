@@ -63,20 +63,17 @@ const DEFAULT_MEASURES = [
 ];
 
 const SlopeMeasureLibrary: React.FC = () => {
-  const [measures, setMeasures] = useState<any[]>([]);
-  const [selectedId, setSelectedId] = useState<string>('cut');
-  const [isEditing, setIsEditing] = useState(false);
-
-  useEffect(() => {
+  const [measures, setMeasures] = useState<any[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_MEASURES);
     if (saved) {
-      setMeasures(JSON.parse(saved));
-    } else {
-      setMeasures(DEFAULT_MEASURES);
-      // 初始化时就同步经济参数到桥梁
-      syncEconomicsToEngine(DEFAULT_MEASURES);
+      try { return JSON.parse(saved); } catch (e) {
+        console.error("Failed to parse saved measures", e);
+      }
     }
-  }, []);
+    return DEFAULT_MEASURES;
+  });
+  const [selectedId, setSelectedId] = useState<string>('cut');
+  const [isEditing, setIsEditing] = useState(false);
 
   const syncEconomicsToEngine = (data: any[]) => {
       const ecoConfig: Record<string, [number, number]> = {};
@@ -85,6 +82,14 @@ const SlopeMeasureLibrary: React.FC = () => {
       });
       localStorage.setItem(STORAGE_KEY_ECONOMICS, JSON.stringify(ecoConfig));
   };
+
+  useEffect(() => {
+    // If we just loaded DEFAULT_MEASURES (meaning no saved state), ensure engine sync
+    if (!localStorage.getItem(STORAGE_KEY_MEASURES)) {
+        syncEconomicsToEngine(DEFAULT_MEASURES);
+        localStorage.setItem(STORAGE_KEY_MEASURES, JSON.stringify(DEFAULT_MEASURES));
+    }
+  }, []);
 
   const selectedMeasure = measures.find(m => m.id === selectedId) || DEFAULT_MEASURES[0];
 

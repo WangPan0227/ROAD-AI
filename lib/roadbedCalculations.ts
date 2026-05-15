@@ -58,24 +58,22 @@ export const calculate_roadbed_settlement = (params: RoadbedEngineParams) => {
             // 竖向总应力 (自重 + 交通附加荷载传播，简化 Boussinesq 系数 lambda_q = 0.3)
             const sigma_z = gamma * depth + q_load * 0.3; 
             
-            let ks = 1.0;
+            let ks = 0.95;
             // 模量衰减逻辑：处于湿润锋以上的土层，饱和度极高，模量大幅衰减
             if (depth <= wetting_front) {
                 ks = 0.45; // 湿化软化状态折减系数
-            } else {
-                ks = 0.95; // 初始天然含水状态折减系数
             }
 
             const E_eq = Math.max(5.0, E_base * ks);
             sum_E += E_eq;
 
             // 变形 = 应力 / 模量。计算分层压缩量 (注意 E_eq 需转为 kPa)
-            const layer_settlement = (sigma_z / (E_eq * 1000)) * dz;
+            const layer_settlement = (sigma_z / Math.max(0.1, E_eq * 1000)) * dz;
             total_settlement += layer_settlement;
         }
 
-        const avg_E = sum_E / n_layers;
-        const capacity_pct = (avg_E / E_req) * 100;
+        const avg_E = sum_E / Math.max(1, n_layers);
+        const capacity_pct = (avg_E / Math.max(0.01, E_req)) * 100;
 
         times.push(day);
         settlement_series.push(total_settlement * 1000); // 最终转为 mm 返回
@@ -122,7 +120,7 @@ export const optimize_roadbed_reinforcement = (
         id: 'S1', name: '方案一：原槽换填与防水封闭',
         measures: ['原槽换填'],
         cost: vol_replace * price_replace,
-        time: vol_replace / eff_replace,
+        time: vol_replace / Math.max(0.01, eff_replace),
         finalCapacity: res_1.final_capacity,
         finalSettlement: res_1.final_settlement,
         desc: '切断地表水入渗，适用于深层骨架未遭严重破坏的浅表层病害。'
@@ -136,7 +134,7 @@ export const optimize_roadbed_reinforcement = (
         id: 'S2', name: '方案二：高聚物无损注浆',
         measures: ['高聚物注浆'],
         cost: weight_grout * price_grout,
-        time: weight_grout / eff_grout,
+        time: weight_grout / Math.max(0.01, eff_grout),
         finalCapacity: res_2.final_capacity,
         finalSettlement: res_2.final_settlement,
         desc: '快速挤密深层软弱土体，模量瞬间恢复，造价适中且可实现2小时开放交通。'
@@ -149,7 +147,7 @@ export const optimize_roadbed_reinforcement = (
         id: 'S3', name: '方案三：注浆联合深层排水',
         measures: ['高聚物注浆', '深层盲沟'],
         cost: (weight_grout * price_grout) + (1.0 * price_drain),
-        time: (weight_grout / eff_grout) + (1.0 / eff_drain),
+        time: (weight_grout / Math.max(0.01, eff_grout)) + (1.0 / Math.max(0.01, eff_drain)),
         finalCapacity: res_3.final_capacity,
         finalSettlement: res_3.final_settlement,
         desc: '标本兼治，既恢复了路基模量，又彻底消除了高地下水位带来的水毁隐患。'
@@ -163,7 +161,7 @@ export const optimize_roadbed_reinforcement = (
         id: 'S4', name: '方案四：微型桩树根网联合加固',
         measures: ['微型钢管桩', '表面换填'],
         cost: (pile_length * price_mpile) + (vol_replace * price_replace),
-        time: (pile_length / eff_mpile) + (vol_replace / eff_replace),
+        time: (pile_length / Math.max(0.01, eff_mpile)) + (vol_replace / Math.max(0.01, eff_replace)),
         finalCapacity: res_4.final_capacity,
         finalSettlement: res_4.final_settlement,
         desc: '提供强大的复合刚度，适用于伴随深层滑动风险或承载力极度丧失的路基。'

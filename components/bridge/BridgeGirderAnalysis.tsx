@@ -1,15 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldAlert, ShieldCheck, Activity, Layers, Settings, Info, Gauge, Zap, Rocket, ChevronRight, AlertTriangle } from 'lucide-react';
+import { ShieldAlert, ShieldCheck, Activity, Settings, Info, Gauge, Zap, Rocket, AlertTriangle } from 'lucide-react';
 import { calculate_girder_unseating } from '../../lib/bridgeCalculations';
 
 const BridgeGirderAnalysis: React.FC = () => {
   const [isCalculating, setIsCalculating] = useState(false);
-  const [params, setParams] = useState({
-    span_length: 30, // m
-    support_length: 80, // cm
-    pier_disp_cm: 20 // cm
+  const [params, setParams] = useState(() => {
+    const pendingLoad = typeof window !== 'undefined' ? localStorage.getItem('roadbedguard_pending_bridge_girder_load') : null;
+    if (pendingLoad) {
+      try {
+        return JSON.parse(pendingLoad);
+      } catch (e) {
+        console.error("Failed to parse bridge girder load", e);
+      }
+    }
+    return {
+      span_length: 30, // m
+      support_length: 80, // cm
+      pier_disp_cm: 20 // cm
+    };
   });
-  const [results, setResults] = useState<any>(null);
+  const [results, setResults] = useState<any>(() => {
+    const res = calculate_girder_unseating(params);
+    if (typeof window !== 'undefined' && localStorage.getItem('roadbedguard_pending_bridge_girder_load')) {
+       localStorage.removeItem('roadbedguard_pending_bridge_girder_load');
+    }
+    return res;
+  });
 
   const updateParam = (key: string, value: any) => {
     setParams(prev => ({ ...prev, [key]: value }));
@@ -17,81 +33,79 @@ const BridgeGirderAnalysis: React.FC = () => {
 
   const runAnalysis = () => {
     setIsCalculating(true);
-    setTimeout(() => {
-      const res = calculate_girder_unseating(params);
-      setResults(res);
-      setIsCalculating(false);
-    }, 600);
+    const res = calculate_girder_unseating(params);
+    setResults(res);
+    setIsCalculating(false);
   };
 
-  useEffect(() => { runAnalysis(); }, []);
+  useEffect(() => {
+    // Component initialized
+  }, []);
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 text-slate-300 font-sans">
+    <div className="flex flex-col h-full bg-gray-100 text-gray-800 font-sans overflow-hidden">
       <div className="flex-1 flex overflow-hidden">
-        {/* 左侧侧边栏 */}
-        <div className="w-80 bg-slate-900 border-r border-slate-800 flex flex-col overflow-hidden relative shadow-2xl">
-          <div className="absolute top-0 right-0 w-[1px] h-full bg-gradient-to-b from-transparent via-red-500/20 to-transparent" />
-          
-          <div className="p-4 border-b border-slate-800 bg-slate-900/50 backdrop-blur-md flex items-center justify-between sticky top-0 z-10">
-            <h3 className="text-[10px] font-black text-red-400 uppercase tracking-[0.2em] flex items-center">
-              <Settings className="w-3.5 h-3.5 mr-2" /> 落梁风险评估配置
-            </h3>
-            <div className="flex space-x-1">
-               <div className="w-1 h-1 bg-red-500 rounded-full animate-pulse" />
-               <div className="w-1 h-1 bg-red-500 rounded-full animate-pulse [animation-delay:200ms]" />
-            </div>
+        {/* 左侧参数区 */}
+        <div className="w-80 bg-white border-r border-gray-200 flex flex-col overflow-hidden relative shadow-sm">
+          <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50 sticky top-0 z-10">
+            <span className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center">
+              <Settings className="w-3.5 h-3.5 mr-2 text-blue-600" /> 几何边界参数
+            </span>
           </div>
           
-          <div className="flex-1 p-5 space-y-8 overflow-y-auto custom-scrollbar">
-            {/* Parameters */}
+          <div className="flex-1 p-5 space-y-6 overflow-y-auto custom-scrollbar">
             <div className="space-y-4">
-              <h4 className="font-black text-slate-500 text-[10px] uppercase tracking-[0.2em] flex items-center">
-                <Layers className="w-3.5 h-3.5 mr-2 text-blue-500" /> 支承连接与搭接长度矩阵
+              <h4 className="font-bold text-gray-400 text-[10px] uppercase tracking-widest flex items-center">
+                结构几何模型
               </h4>
-              <div className="space-y-4">
-                <div className="bg-slate-800/40 p-4 rounded-xl border border-slate-700/50">
-                  <label className="block text-[8px] text-slate-500 uppercase mb-2 font-black">主梁跨径 L (m)</label>
-                  <input type="number" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs font-mono text-blue-400" value={params.span_length} onChange={e => updateParam('span_length', parseFloat(e.target.value))} />
+              <div className="bg-gray-50 p-4 rounded-sm border border-gray-200 space-y-4">
+                <div>
+                  <label className="block text-[10px] text-gray-500 uppercase mb-1 font-bold">主梁跨径 L (m)</label>
+                  <input type="number" className="w-full bg-white border border-gray-200 rounded-sm p-2 text-sm font-medium text-gray-900 focus:border-blue-500 outline-none" value={params.span_length} onChange={e => updateParam('span_length', parseFloat(e.target.value))} />
                 </div>
-                <div className="bg-slate-800/40 p-4 rounded-xl border border-slate-700/50">
-                  <label className="block text-[8px] text-slate-500 uppercase mb-2 font-black">设计支承长度 a_design (cm)</label>
-                  <input type="number" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs font-mono text-blue-400" value={params.support_length} onChange={e => updateParam('support_length', parseFloat(e.target.value))} />
+                <div>
+                  <label className="block text-[10px] text-gray-500 uppercase mb-1 font-bold">设计搭接长度 a0 (cm)</label>
+                  <input type="number" className="w-full bg-white border border-gray-200 rounded-sm p-2 text-sm font-medium text-gray-900 focus:border-blue-500 outline-none" value={params.support_length} onChange={e => updateParam('support_length', parseFloat(e.target.value))} />
                 </div>
-                <div className="bg-red-500/5 border border-red-500/20 p-5 rounded-2xl relative overflow-hidden group">
-                  <div className="absolute top-0 left-0 w-full h-[1px] bg-red-500/40 animate-scan pointer-events-none" />
-                  <label className="block text-[9px] text-red-400 uppercase font-black mb-3 tracking-widest flex justify-between">
-                    <span>实测横向位移</span>
-                    <span className="text-shadow-glow">Δ_ACTUAL</span>
-                  </label>
-                  <div className="flex items-center space-x-3">
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-4 border-t border-gray-100">
+              <h4 className="font-bold text-gray-400 text-[10px] uppercase tracking-widest flex items-center">
+                实测变位数据
+              </h4>
+              <div className="bg-blue-50/30 p-4 rounded-sm border border-blue-100 space-y-4">
+                <div className="relative">
+                  <label className="block text-[10px] text-blue-700 uppercase font-bold mb-2">相对位移检测 Δ (cm)</label>
+                  <div className="relative">
                     <input 
                       type="number" 
-                      className="flex-1 bg-slate-950 border border-red-500/30 rounded-lg p-3 text-xl font-black text-red-500 font-mono focus:ring-1 focus:ring-red-500 outline-none" 
+                      className="w-full bg-white border border-blue-200 rounded-sm p-3 text-lg font-bold text-blue-700 focus:border-blue-500 outline-none pr-12" 
                       value={params.pier_disp_cm} 
                       onChange={e => updateParam('pier_disp_cm', parseFloat(e.target.value))} 
                     />
-                    <span className="text-[10px] font-mono font-black text-red-500/50 uppercase">cm</span>
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-blue-300">CM</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="p-5 border-t border-slate-800 bg-slate-900/80 backdrop-blur-md sticky bottom-0 z-10">
+          <div className="p-4 border-t border-gray-100 bg-gray-50">
             <button 
-              onClick={runAnalysis} disabled={isCalculating}
-              className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.4em] flex items-center justify-center space-x-3 transition-all transform active:scale-95 shadow-2xl ${isCalculating ? 'bg-slate-800 text-slate-600 font-mono' : 'bg-red-600 text-white hover:bg-red-500 shadow-red-500/20 uppercase'}`}
+              onClick={runAnalysis}
+              disabled={isCalculating}
+              className={`w-full py-3 rounded-sm font-bold text-xs uppercase tracking-widest flex items-center justify-center space-x-2 transition-all active:scale-95 shadow-sm ${isCalculating ? 'bg-gray-200 text-gray-500' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
             >
               {isCalculating ? (
                 <>
-                  <Activity className="w-4 h-4 animate-spin text-red-400" />
-                  <span>DECODING...</span>
+                  <Activity className="w-4 h-4 animate-spin" />
+                  <span>CALCULATING...</span>
                 </>
               ) : (
                 <>
-                  <Rocket className="w-4 h-4 mr-2" />
-                  <span>执行落梁风险仿真</span>
+                  <Rocket className="w-3" />
+                  <span>落梁仿真计算</span>
                 </>
               )}
             </button>
@@ -99,191 +113,169 @@ const BridgeGirderAnalysis: React.FC = () => {
         </div>
 
         {/* 右侧主视口 */}
-        <div className="flex-1 flex flex-col overflow-hidden relative">
+        <div className="flex-1 flex flex-col overflow-hidden bg-gray-100">
           {/* Header */}
-          <div className="h-16 bg-slate-900 border-b border-slate-800 px-8 flex items-center justify-between shadow-2xl relative z-20">
-            <div className="absolute top-0 left-0 w-full h-[1px] bg-red-500/10 animate-scan pointer-events-none" />
-            <div className="flex items-center space-x-4">
-              <div className="p-2 bg-red-500/10 rounded-lg border border-red-500/20">
-                <AlertTriangle className="w-5 h-5 text-red-500 animate-pulse" />
+          <div className="h-14 border-b border-gray-200 px-8 flex items-center justify-between bg-white relative z-20 shadow-sm">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-blue-50 rounded-sm border border-blue-100">
+                <AlertTriangle className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <h2 className="text-sm font-black text-slate-100 tracking-wider uppercase">InfraGuard | 梁体垮塌/落梁灾毁评估系统</h2>
-                <p className="text-[10px] text-slate-500 font-mono tracking-tighter italic uppercase border-l border-slate-700 pl-2">Unseating Risk Analysis // JTG D62 Model Ver 2.4</p>
+                <h2 className="text-sm font-bold text-gray-800 tracking-tight uppercase">梁体垮塌/落梁仿真视窗</h2>
+                <div className="flex items-center space-x-2">
+                   <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">ENGINE: UNSEAT_CORE_V2 // JTG D62</span>
+                </div>
               </div>
-            </div>
-            <div className="px-4 py-1.5 bg-slate-950 border border-slate-800 rounded-lg hidden md:block">
-               <div className="text-[8px] font-black text-slate-600 uppercase tracking-widest text-center">系统完整度</div>
-               <div className="h-1 w-24 bg-slate-800 rounded-full mt-1 overflow-hidden">
-                  <div className="h-full bg-blue-500 animate-[loading_2s_ease-in-out_infinite]" style={{ width: '85%' }} />
-               </div>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-8 bg-slate-900/20 custom-scrollbar relative z-10">
-            <div className="absolute inset-0 bg-grid-white/[0.02] pointer-events-none" />
+          <div className="flex-1 overflow-y-auto p-8 bg-gray-50 custom-scrollbar relative">
             {!results ? null : (
-              <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-700">
-                {/* Result Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-stretch font-mono">
-                  <div className="md:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-slate-900/50 backdrop-blur-md p-6 rounded-3xl border border-slate-800 shadow-2xl relative overflow-hidden group">
-                      <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex justify-between">
-                         <span>规范最小搭接长度</span>
-                         <span className="text-blue-400">N_REQ</span>
-                      </div>
-                      <div className="flex items-baseline space-x-2">
-                         <div className="text-4xl font-black text-slate-100 tracking-tighter">{results.N_req.toFixed(1)}</div>
-                         <div className="text-xs text-slate-600 font-bold uppercase tracking-widest">CM</div>
-                      </div>
+              <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {/* Result Grid */}
+                <div className="grid grid-cols-3 gap-6">
+                  <div className="bg-white p-5 rounded-sm border border-gray-200 shadow-sm">
+                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">规范最小搭接长度 (N)</div>
+                    <div className="flex items-baseline space-x-2">
+                       <div className="text-3xl font-bold text-gray-900 font-mono">{(results?.N_req ?? 0).toFixed(1)}</div>
+                       <div className="text-[10px] text-gray-400 font-bold uppercase">CM</div>
                     </div>
-                    
-                    <div className="bg-slate-900/50 backdrop-blur-md p-6 rounded-3xl border border-slate-800 shadow-2xl relative overflow-hidden group">
-                      <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">当前剩余搭接长度</div>
-                      <div className="flex items-baseline space-x-2">
-                         <div className={`text-4xl font-black tracking-tighter ${results.remaining_support < 10 ? 'text-red-500 text-shadow-glow' : 'text-blue-500 underline decoration-blue-500/20'}`}>
-                            {results.remaining_support.toFixed(1)}
-                         </div>
-                         <div className="text-xs text-slate-600 font-bold uppercase tracking-widest">CM</div>
-                      </div>
-                    </div>
-
-                    <div className="bg-slate-900/50 backdrop-blur-md p-8 rounded-[2.5rem] border border-slate-800 shadow-2xl col-span-1 md:col-span-2 flex justify-between items-center relative overflow-hidden border-l-4 border-l-orange-500/50">
-                       <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none text-orange-500">
-                          <Activity className="w-24 h-24 stroke-[1]" />
+                  </div>
+                  
+                  <div className="bg-white p-5 rounded-sm border border-gray-200 shadow-sm">
+                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">剩余支承余量 (S)</div>
+                    <div className="flex items-baseline space-x-2">
+                       <div className={`text-3xl font-bold font-mono ${(results?.remaining_support ?? 0) < 10 ? 'text-red-600' : 'text-gray-900'}`}>
+                          {(results?.remaining_support ?? 0).toFixed(1)}
                        </div>
-                       <div>
-                          <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center">
-                             <Activity className="w-3.5 h-3.5 mr-2 text-orange-500" /> 动态支座脱空风险系数 (Overlap Ratio)
-                          </div>
-                          <div className="flex items-baseline space-x-4">
-                             <div className={`text-7xl font-black tracking-tighter italic ${results.risk_ratio >= 1.0 ? 'text-red-500' : 'text-orange-400'}`}>
-                                {(results.risk_ratio * 100).toFixed(1)}%
-                             </div>
-                             <div className="text-xs font-black uppercase tracking-widest opacity-30">Risk Matrix Factor</div>
-                          </div>
-                       </div>
-                       <div className="hidden lg:block w-40">
-                          <div className="text-[9px] font-mono text-slate-500 uppercase mb-2">Stability Trace</div>
-                          <div className="flex items-end space-x-1 h-12">
-                             {[40, 60, 45, 70, 85, 60, 50, 90, params.pier_disp_cm * 2].map((h, i) => (
-                                <div key={i} className={`w-2 transition-all duration-500 ${i === 8 ? 'bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]' : 'bg-slate-800'}`} style={{ height: `${Math.min(100, (h / 100) * 100)}%` }} />
-                             ))}
-                          </div>
-                       </div>
+                       <div className="text-[10px] text-gray-400 font-bold uppercase">CM</div>
                     </div>
                   </div>
 
-                  <div className={`md:col-span-4 p-8 rounded-[2.5rem] border relative flex flex-col justify-center overflow-hidden shadow-2xl ${results.is_unseated ? 'bg-red-500/10 border-red-500/50' : 'bg-emerald-500/10 border-emerald-500/50'}`}>
-                     <div className="absolute inset-0 bg-grid-white/[0.05] pointer-events-none" />
-                     <div className="relative z-10 flex flex-col items-center text-center space-y-6">
-                        <div className={`p-5 rounded-full ${results.is_unseated ? 'bg-red-500/20 text-red-500 shadow-[0_0_30px_rgba(239,68,68,0.3)]' : 'bg-emerald-500/20 text-emerald-500'}`}>
-                           {results.is_unseated ? <ShieldAlert className="w-12 h-12 animate-bounce" /> : <ShieldCheck className="w-12 h-12" />}
+                  <div className={`p-5 rounded-sm border flex flex-col justify-center shadow-sm ${results.is_unseated ? 'bg-red-50 border-red-200 text-red-600' : 'bg-emerald-50 border-emerald-200 text-emerald-600'}`}>
+                     <div className="flex items-center space-x-3">
+                        <div className={`p-2 rounded-full ${results.is_unseated ? 'bg-red-100' : 'bg-emerald-100'}`}>
+                           {results.is_unseated ? <ShieldAlert className="w-5 h-5 text-red-600" /> : <ShieldCheck className="w-5 h-5 text-emerald-600" />}
                         </div>
                         <div>
-                           <span className="text-[10px] font-black uppercase tracking-[0.4em] opacity-60 italic mb-2 block">Critical Safety State</span>
-                           <h3 className={`text-2xl font-black tracking-tight leading-tight uppercase ${results.is_unseated ? 'text-red-400' : 'text-emerald-400'}`}>
-                              {results.is_unseated ? '❌ 梁体已完全脱空！结构垮塌' : '✅ 支承长度冗余，结构安全'}
+                           <div className="text-[9px] font-bold uppercase tracking-widest opacity-60">结构安全性评级</div>
+                           <h3 className="text-xs font-bold uppercase tracking-tight">
+                              {results.is_unseated ? '梁体现存落梁垮塌风险' : '支承安全余量充足'}
                            </h3>
-                        </div>
-                        <div className="pt-6 border-t border-white/5 w-full">
-                            <p className="text-[9px] font-mono leading-relaxed opacity-60 italic tracking-tighter">
-                               {results.is_unseated 
-                                 ? 'SEVERE_ERROR: Support length N_actual < N_limit. Triggering immediate structural failure protocols.' 
-                                 : 'STATUS_STABLE: Minimum support requirements satisfied. Maintaining operative baseline.'}
-                            </p>
                         </div>
                      </div>
                   </div>
                 </div>
 
-                {/* Dynamic SVG Visualization Container */}
-                <div className="bg-slate-900/50 backdrop-blur-md rounded-[2.5rem] border border-slate-800 p-10 shadow-3xl flex flex-col items-center justify-center relative overflow-hidden min-h-[360px]">
-                   <div className="absolute top-8 left-10 flex items-center space-x-3">
-                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-ping" />
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">物理场景动力学演变 Matrix Viewer</span>
+                {/* Main Visualization Container */}
+                <div className="bg-white rounded-sm border border-gray-200 p-10 shadow-sm flex flex-col items-center justify-center relative overflow-hidden min-h-[440px]">
+                   <div className="absolute top-6 left-8 flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-blue-600 rounded-full" />
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">仿真模型渲染 (High Fidelity)</span>
                    </div>
 
-                   <svg width="600" height="240" viewBox="0 0 600 240" className="relative z-10 filter drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+                   <svg width="600" height="280" viewBox="0 0 600 280" className="relative z-10">
                       <defs>
-                        <linearGradient id="pierGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                          <stop offset="0%" stopColor="#1e293b" />
-                          <stop offset="100%" stopColor="#0f172a" />
+                        {/* Photorealistic Filters */}
+                        <filter id="concreteNoise" x="0" y="0" width="100%" height="100%">
+                          <feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="3" result="noise" />
+                          <feDiffuseLighting in="noise" lightingColor="#f3f4f6" surfaceScale="2">
+                            <feDistantLight elevation="45" azimuth="45" />
+                          </feDiffuseLighting>
+                        </filter>
+                        
+                        <pattern id="concreteTexture" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
+                           <rect width="100" height="100" fill="#f1f5f9" />
+                           <circle cx="20" cy="20" r="1" fill="#cbd5e1" />
+                           <circle cx="80" cy="40" r="1.5" fill="#e2e8f0" />
+                           <circle cx="50" cy="70" r="1" fill="#cbd5e1" />
+                        </pattern>
+
+                        <linearGradient id="metalGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                          <stop offset="0%" stopColor="#94a3b8" />
+                          <stop offset="50%" stopColor="#cbd5e1" />
+                          <stop offset="100%" stopColor="#94a3b8" />
                         </linearGradient>
-                        <filter id="glow-red">
-                          <feGaussianBlur stdDeviation="3" result="blur" />
-                          <feComposite in="SourceGraphic" in2="blur" operator="over" />
+
+                        <filter id="shadowHeavy">
+                          <feDropShadow dx="0" dy="10" stdDeviation="5" shadowOpacity="0.2" />
                         </filter>
                       </defs>
                       
-                      {/* Water/Background Ground */}
-                      <rect x="0" y="200" width="600" height="40" fill="#020617" />
-                      <line x1="0" y1="200" x2="600" y2="200" stroke="#1e293b" strokeWidth="2" strokeDasharray="6 3" />
+                      {/* Floor Line */}
+                      <line x1="0" y1="240" x2="600" y2="240" stroke="#e2e8f0" strokeWidth="1" />
                       
-                      {/* Left Pier (Fixed Reference) */}
-                      <g opacity={results.is_unseated ? 0.3 : 1}>
-                        <rect x="80" y="100" width="80" height="100" fill="url(#pierGrad)" stroke="#334155" strokeWidth="2" />
-                        <rect x="60" y="90" width="120" height="15" fill="#334155" rx="2" />
+                      {/* Fixed Pier (Reference) */}
+                      <g opacity={results.is_unseated ? 0.4 : 1}>
+                        <rect x="80" y="120" width="80" height="120" fill="url(#concreteTexture)" stroke="#94a3b8" strokeWidth="0.5" filter="url(#concreteNoise)" />
+                        <rect x="60" y="110" width="120" height="12" fill="url(#metalGrad)" stroke="#64748b" strokeWidth="1" rx="1" />
                       </g>
                       
-                      {/* Right Pier (The one moving relatively or affected) */}
+                      {/* Target Pier (Moving) */}
                       <g>
-                        <rect x="420" y="100" width="80" height="100" fill="url(#pierGrad)" stroke="#334155" strokeWidth="2" />
-                        <rect x="400" y="90" width="120" height="15" fill="#334155" rx="2" />
-                        {/* Scale Rulers on Pier Top */}
-                        <line x1="400" y1="90" x2="520" y2="90" stroke="#475569" strokeWidth="1" strokeDasharray="2 1" />
+                        <rect x="420" y="120" width="80" height="120" fill="url(#concreteTexture)" stroke="#94a3b8" strokeWidth="0.5" filter="url(#concreteNoise)" />
+                        <rect x="400" y="110" width="120" height="12" fill="url(#metalGrad)" stroke="#64748b" strokeWidth="1" rx="1" />
+                        {/* Displacement Indicator */}
+                        <line x1="460" y1="245" x2={460 + params.pier_disp_cm * 2} y2="245" stroke="#3b82f6" strokeWidth="1" markerEnd="url(#arrow-blue)" />
                       </g>
 
-                      {/* Main Girder */}
-                      <g style={{ transition: 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1)' }} 
-                         transform={`translate(${params.pier_disp_cm * 2}, ${results.is_unseated ? 80 : 0}) rotate(${results.is_unseated ? 18 : 0}, 300, 70)`}>
-                        <rect x="110" y="60" width="380" height="25" fill="#1e1b4b" stroke="#3730a3" strokeWidth="2" rx="4" className="shadow-lg" />
-                        <text x="300" y="77" textAnchor="middle" fill="#4f46e5" fontSize="9" fontWeight="900" letterSpacing="2" className="uppercase opacity-60">BRIDGE_GIRDER_STRUCTURE</text>
-                        
-                        {/* Highlight on end of girder */}
-                        <rect x="470" y="60" width="20" height="25" fill={results.is_unseated ? '#ef4444' : '#2563eb'} fillOpacity={results.is_unseated ? 0.4 : 0.1} />
+                      {/* Bridge Girder - Realistic Render */}
+                      <g style={{ transition: 'all 1.2s cubic-bezier(0.4, 0, 0.2, 1)' }} 
+                         transform={`translate(${params.pier_disp_cm * 2}, ${results.is_unseated ? 80 : 0}) rotate(${results.is_unseated ? 15 : 0}, 300, 80)`}
+                         filter="url(#shadowHeavy)">
+                        <rect x="100" y="70" width="400" height="30" fill="url(#concreteTexture)" stroke="#64748b" strokeWidth="1" rx="1" filter="url(#concreteNoise)" />
+                        {/* Detail lines on girder */}
+                        <line x1="100" y1="85" x2="500" y2="85" stroke="#cbd5e1" strokeWidth="0.5" strokeOpacity="0.5" />
+                        <text x="300" y="88" textAnchor="middle" fill="#64748b" fontSize="8" fontWeight="bold" className="uppercase tracking-[0.3em] opacity-30">Prestressed_Reinforced_Girder</text>
                       </g>
                       
-                      {/* Marker lines & Safety Limits */}
-                      <g opacity="0.4">
-                         <line x1={180 - results.N_req} y1="40" x2={180 - results.N_req} y2="180" stroke="#f43f5e" strokeWidth="1.5" strokeDasharray="4 2" />
-                         <text x={180 - results.N_req} y="30" textAnchor="middle" fill="#f43f5e" fontSize="7" fontWeight="black" className="uppercase">Min_Limit_N_req</text>
+                      {/* Technical Dimension Lines */}
+                      <g opacity="0.5" fontSize="8" fontWeight="bold" fill="#64748b">
+                         <line x1={180 - results.N_req} y1="30" x2={180 - results.N_req} y2="220" stroke="#ef4444" strokeWidth="0.8" strokeDasharray="3 3" />
+                         <text x={185 - results.N_req} y="40" fill="#ef4444">Req N_{results.N_req.toFixed(1)}</text>
                          
-                         <line x1="180" y1="40" x2="180" y2="180" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2 2" />
-                         <text x="180" y="30" textAnchor="middle" fill="#3b82f6" fontSize="7" fontWeight="black" className="uppercase">Support_Boundary</text>
+                         <line x1="180" y1="30" x2="180" y2="220" stroke="#3b82f6" strokeWidth="0.8" strokeDasharray="3 3" />
+                         <text x="185" y="55" fill="#3b82f6">Baseline</text>
                       </g>
 
-                      {/* Displacement Arrow */}
-                      <path d={`M 300 130 L ${300 + params.pier_disp_cm * 2} 130`} stroke="#f97316" strokeWidth="2" strokeDasharray="4 2" className="animate-pulse" />
-                      <circle cx={300 + params.pier_disp_cm * 2} cy="130" r="3" fill="#f97316" />
-                      <text x="310" y="120" fill="#f97316" fontSize="8" fontWeight="black" className="uppercase italic">ACTUAL_SHIFT: {params.pier_disp_cm}cm</text>
+                      {/* Marker Defs */}
+                      <defs>
+                        <marker id="arrow-blue" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                          <polygon points="0 0, 10 3.5, 0 7" fill="#3b82f6" />
+                        </marker>
+                      </defs>
                    </svg>
                    
-                   <div className="absolute bottom-10 flex space-x-12 px-10 w-full justify-between items-center bg-slate-900/40 py-4 border-t border-slate-800/50 border-dashed">
+                   <div className="mt-8 flex justify-between items-center bg-gray-50 px-8 py-4 rounded-sm border border-gray-200 w-full max-w-2xl text-[10px] font-bold text-gray-500 uppercase">
                       <div className="flex items-center space-x-3">
-                         <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                         <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none">Lateral Pier Displacement (Δ)</p>
+                         <div className="w-2.5 h-2.5 bg-blue-600 rounded-sm" />
+                         <span>桥墩相对变位监测 Δ</span>
                       </div>
-                      <div className="flex items-center space-x-6 font-mono text-[10px]">
-                         <div className="text-slate-400">STATUS: <span className={results.is_unseated ? 'text-red-500' : 'text-emerald-400'}>{results.is_unseated ? 'CRITICAL_FAIL' : 'NOMINAL_OPERATIVE'}</span></div>
-                         <div className="text-slate-400">FS: <span className="text-slate-100 italic">{(results.remaining_support / results.N_req).toFixed(2)}</span></div>
+                      <div className="flex items-center space-x-8 font-mono">
+                         <div>风险比率: <span className={(results?.risk_ratio ?? 0) >= 0.8 ? 'text-red-600' : 'text-blue-700'}>{((results?.risk_ratio ?? 0) * 100).toFixed(2)}%</span></div>
+                         <div className="w-[1px] h-4 bg-gray-300" />
+                         <div>稳定余量: <span className="text-gray-900">{results?.is_unseated ? '0.00' : (results?.remaining_support ?? 0).toFixed(2)}cm</span></div>
                       </div>
                    </div>
                 </div>
 
-                {/* Expert Instructions */}
-                <div className={`p-8 rounded-[2rem] border relative overflow-hidden ${results.is_unseated ? 'bg-red-500/5 border-red-500/20' : 'bg-blue-500/5 border-blue-500/20'}`}>
-                   <div className="absolute top-0 right-0 p-6 opacity-5">
-                      <Info className="w-16 h-16 text-white" />
+                {/* AI Recommendation */}
+                <div className="bg-white border border-gray-200 rounded-sm p-6 shadow-sm relative overflow-hidden group">
+                   <div className="flex items-start space-x-4">
+                     <div className="p-3 bg-blue-50 rounded-sm border border-blue-100 mt-1">
+                        <Zap className="w-5 h-5 text-blue-600" />
+                     </div>
+                     <div className="flex-1">
+                       <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center">
+                         AI 加固决策建议 (Decision Assistance)
+                       </h4>
+                       <p className="text-sm leading-relaxed text-gray-700 font-medium tracking-tight">
+                         {results.is_unseated 
+                           ? '🚨 危险通告：结构已触发落梁阈值。仿真显示主梁重心已偏离支撑中心。当前建议：1. 立即实施交通导流及封闭；2. 部署紧急钢结构冗余支撑（I型紧急支架）；3. 开展桥梁顶升复位后的支座更换与限位件补强。' 
+                           : '⚖️ 运行评估：当前支承宽度满足规范最小要求。由于相对位移 Δ 仍在可控区间，建议维持日常巡检强度，并安装桥梁健康监测（SHM）倾角传感器，重点关注环境温差及重载通行下的累织位移发展。'}
+                       </p>
+                     </div>
                    </div>
-                   <h4 className={`text-[10px] font-black uppercase tracking-[0.3em] mb-4 flex items-center ${results.is_unseated ? 'text-red-400' : 'text-blue-400'}`}>
-                     <Info className="w-4 h-4 mr-2" /> 专家级决策指令矩阵 (Instruction Matrix)
-                   </h4>
-                   <p className="text-xs leading-relaxed text-slate-400 font-medium">
-                     {results.is_unseated 
-                       ? '由于支承长度小于规范下限且主梁已发生倾覆轨迹，必须立即启动一级橙色预警。禁止一切车辆进入受灾跨域，并部署重型千斤顶与横向约束锚具进行主梁整体纠编复位，防落梁钢拉索需进行全量张拉检查。' 
-                       : '当前计算显示搭接冗余度处于亚健康状态。虽无即时静力落梁风险，但考虑到地震力或温缩引起的累积变位，建议于支座周边增设粘滞阻尼器（VD）或减隔震垫，并安装高精度激光位移传感器进行 7x24h 自动化健康监测。'}
-                   </p>
                 </div>
               </div>
             )}
