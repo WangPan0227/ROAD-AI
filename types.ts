@@ -20,22 +20,35 @@ export enum Tab {
   RoadbedMeasures = 'RoadbedMeasures',
   RoadbedDiseaseAtlas = 'RoadbedDiseaseAtlas',
   RoadbedClassicCases = 'RoadbedClassicCases',
+  RetainingAnalysis = 'RetainingAnalysis',
+  RetainingTypicalCases = 'RetainingTypicalCases',
+  RetainingHistory = 'RetainingHistory',
+  RetainingMeasures = 'RetainingMeasures',
+  RetainingDiseaseAtlas = 'RetainingDiseaseAtlas',
+  RetainingClassicCases = 'RetainingClassicCases',
   BridgeAnalysis = 'BridgeAnalysis',
   BridgeTypicalCases = 'BridgeTypicalCases',
   BridgeHistory = 'BridgeHistory',
   BridgeMeasures = 'BridgeMeasures',
   BridgeDiseaseAtlas = 'BridgeDiseaseAtlas',
   BridgeClassicCases = 'BridgeClassicCases',
+  BridgeGirderAnalysis = 'BridgeGirderAnalysis',
+  BridgeComponentAnalysis = 'BridgeComponentAnalysis',
   TunnelAnalysis = 'TunnelAnalysis',
   TunnelTypicalCases = 'TunnelTypicalCases',
   TunnelHistory = 'TunnelHistory',
   TunnelMeasures = 'TunnelMeasures',
   TunnelDiseaseAtlas = 'TunnelDiseaseAtlas',
-  TunnelClassicCases = 'TunnelClassicCases'
+  TunnelClassicCases = 'TunnelClassicCases',
+  TunnelVoidAnalysis = 'TunnelVoidAnalysis',
+  TunnelCollapseAnalysis = 'TunnelCollapseAnalysis'
 }
 
 export type InfrastructureCategory = 'road' | 'bridge' | 'tunnel';
-export type InfrastructureSubCategory = 'roadbed' | 'slope' | 'bridge_deck' | 'bridge_pier' | 'tunnel_lining' | 'tunnel_portal';
+export type InfrastructureSubCategory = 
+  'roadbed' | 'slope' | 'retaining' | 
+  'pier_deviation' | 'girder_collapse' | 'component_damage' | 
+  'lining_damage' | 'void_behind' | 'collapse_block';
 
 export interface InfrastructureState {
   category: InfrastructureCategory;

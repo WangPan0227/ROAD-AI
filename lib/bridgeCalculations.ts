@@ -21,7 +21,7 @@ export interface BridgeEcoConfig {
 /**
  * 1. 核心计算模块：计算单柱抗剪承载力 Vn
  */
-export const calculate_vn = (p: BridgeEngineParams) => {
+export const calculate_vn = (p: BridgeEngineParams & { damage_factor?: number }) => {
   let rho_st = (4 * p.Ast) / (p.s * p.D_prime);
   if (rho_st > 2.4 / p.fyt) rho_st = 2.4 / p.fyt;
 
@@ -34,13 +34,18 @@ export const calculate_vn = (p: BridgeEngineParams) => {
   const Vc = 0.1 * vc * p.Ae;
   const Vs = 0.1 * (Math.PI / 2) * p.Ast * p.fyt * p.D_prime / p.s;
 
-  return { Vn: Vc + Vs, Vc, Vs };
+  const totalVn = Vc + Vs;
+  return { 
+    Vn: p.damage_factor ? totalVn * p.damage_factor : totalVn, 
+    Vc, 
+    Vs 
+  };
 };
 
 /**
  * 2. 状态评估模块：双折线能量-位移插值 (计算损伤度 αD)
  */
-export const calculate_bridge_impact = (params: BridgeEngineParams) => {
+export const calculate_bridge_impact = (params: BridgeEngineParams & { damage_factor?: number }) => {
   const { D, Ek } = params;
   const { Vn, Vc, Vs } = calculate_vn(params);
 
@@ -129,4 +134,46 @@ export const optimize_bridge_reinforcement = (
   return validSchemes.length > 0 
       ? validSchemes.sort((a, b) => a.cost - b.cost) 
       : schemes.sort((a, b) => a.finalAlphaD - b.finalAlphaD);
+};
+
+/**
+ * 4. 梁体落梁/垮塌仿真 (Girder Unseating Simulation)
+ */
+export const calculate_girder_unseating = (params: { 
+  span: number,       // 跨径 (m)
+  overlap: number,    // 支承长度 (cm)
+  displacement: number // 实测偏移/位移 (cm)
+}) => {
+  // 规范建议最小支承长度 N_req = (70 + 0.5 * L) * 0.1 (单位换算为 cm 还是 m？通常规范为 mm, 这里假设 overlap 输入为 cm)
+  const N_req = 70 + 0.5 * params.span; // 单位 cm
+  const remaining = params.overlap - params.displacement;
+  const risk_ratio = params.displacement / params.overlap;
+  const is_unseated = remaining <= 0;
+  
+  return {
+    N_req,
+    remaining,
+    risk_ratio,
+    status: is_unseated ? 'collapsed' : (remaining < 20 ? 'warning' : 'safe')
+  };
+};
+
+/**
+ * 5. 构件损伤评估 (Component Damage Assessment)
+ */
+export const calculate_bridge_component_damage = (params: {
+  baseVn: number,     // 设计承载力 (kN)
+  reinforcement_depth: number, // 露筋深度 (mm)
+  corrosion_area_ratio: number // 锈蚀面积比 (0-1)
+}) => {
+  // 简化折减模型
+  const factor_depth = Math.max(0.5, 1 - params.reinforcement_depth / 50); 
+  const factor_corrosion = Math.max(0.4, 1 - params.corrosion_area_ratio * 0.8);
+  const damage_factor = factor_depth * factor_corrosion;
+  
+  return {
+    currentVn: params.baseVn * damage_factor,
+    damage_factor,
+    reduction_percentage: (1 - damage_factor) * 100
+  };
 };

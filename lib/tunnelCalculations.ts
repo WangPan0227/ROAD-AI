@@ -135,3 +135,46 @@ export const optimize_tunnel_reinforcement = (
       ? validSchemes.sort((a, b) => a.cost - b.cost) 
       : schemes.sort((a, b) => b.finalHealth - a.finalHealth);
 };
+
+/**
+ * 3. 壁后脱空受力偏移仿真 (Tunnel Void & Stress Eccentricity)
+ */
+export const calculate_tunnel_void = (params: {
+  angle: number,   // 脱空弧度 (deg)
+  depth: number,   // 空洞深度 (mm)
+  radius: number,  // 隧道半径 (m)
+}) => {
+  // 脱空导致受力重分布，产生偏心矩 e (简化模型)
+  const e_increment = (params.depth / 1000) * Math.sin((params.angle * Math.PI) / 360);
+  const reduction_factor = Math.max(0.3, 1 - (params.angle / 180) * (params.depth / 500));
+  
+  return {
+    e_increment,
+    reduction_factor,
+    status: params.angle > 45 || params.depth > 200 ? 'critical' : 'stable'
+  };
+};
+
+/**
+ * 4. 坍塌封堵体积与高度计算 (Tunnel Collapse & Blockage)
+ */
+export const calculate_tunnel_collapse = (params: {
+  B: number,      // 跨度
+  Ht: number,     // 高度
+  rockClass: number, // 围岩级别 (1-6)
+  collapse_length: number // 长度
+}) => {
+  const f_map: Record<number, number> = { 1: 10, 2: 6, 3: 4, 4: 1.5, 5: 0.8, 6: 0.4 };
+  const f = f_map[params.rockClass] || 0.5;
+  
+  const hq = (params.B / 2) / f; 
+  const volume = 0.66 * params.B * hq * params.collapse_length;
+  const blockage_ratio = Math.min(100, (hq / params.Ht) * 100);
+  
+  return {
+    hq,
+    volume,
+    blockage_ratio,
+    status: blockage_ratio > 70 ? 'blocked' : 'restricted'
+  };
+};

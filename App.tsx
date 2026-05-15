@@ -27,17 +27,27 @@ import RoadbedMeasureLibrary from './components/roadbed/RoadbedMeasureLibrary';
 import RoadbedDiseaseAtlas from './components/roadbed/RoadbedDiseaseAtlas';
 import RoadbedClassicCases from './components/roadbed/RoadbedClassicCases';
 import BridgeAnalysis from './components/bridge/BridgeAnalysis';
+import BridgeGirderAnalysis from './components/bridge/BridgeGirderAnalysis';
+import BridgeComponentAnalysis from './components/bridge/BridgeComponentAnalysis';
 import BridgeTypicalCases from './components/bridge/BridgeTypicalCases';
 import BridgeHistoryLibrary from './components/bridge/BridgeHistoryLibrary';
 import BridgeMeasureLibrary from './components/bridge/BridgeMeasureLibrary';
 import BridgeDiseaseAtlas from './components/bridge/BridgeDiseaseAtlas';
 import BridgeClassicCases from './components/bridge/BridgeClassicCases';
 import TunnelAnalysis from './components/tunnel/TunnelAnalysis';
+import TunnelVoidAnalysis from './components/tunnel/TunnelVoidAnalysis';
+import TunnelCollapseAnalysis from './components/tunnel/TunnelCollapseAnalysis';
 import TunnelTypicalCases from './components/tunnel/TunnelTypicalCases';
 import TunnelHistoryLibrary from './components/tunnel/TunnelHistoryLibrary';
 import TunnelMeasureLibrary from './components/tunnel/TunnelMeasureLibrary';
 import TunnelDiseaseAtlas from './components/tunnel/TunnelDiseaseAtlas';
 import TunnelClassicCases from './components/tunnel/TunnelClassicCases';
+import RetainingAnalysis from './components/retaining/RetainingAnalysis';
+import RetainingTypicalCases from './components/retaining/RetainingTypicalCases';
+import RetainingHistoryLibrary from './components/retaining/RetainingHistoryLibrary';
+import RetainingMeasureLibrary from './components/retaining/RetainingMeasureLibrary';
+import RetainingDiseaseAtlas from './components/retaining/RetainingDiseaseAtlas';
+import RetainingClassicCases from './components/retaining/RetainingClassicCases';
 import { Tab, InfrastructureState, InfrastructureCategory, InfrastructureSubCategory } from './types';
 
 // Placeholder components for those not fully implemented in this turn
@@ -59,9 +69,13 @@ const App: React.FC = () => {
   const [activeTabs, setActiveTabs] = useState<Record<string, Tab>>({
     roadbed: Tab.RoadbedAnalysis,
     slope: Tab.DecisionModel,
-    bridge_pier: Tab.BridgeAnalysis,
-    tunnel_lining: Tab.TunnelAnalysis,
-    tunnel_portal: Tab.TunnelAnalysis
+    retaining: Tab.RetainingAnalysis,
+    pier_deviation: Tab.BridgeAnalysis,
+    girder_collapse: Tab.BridgeGirderAnalysis,
+    component_damage: Tab.BridgeComponentAnalysis,
+    lining_damage: Tab.TunnelAnalysis,
+    void_behind: Tab.TunnelVoidAnalysis,
+    collapse_block: Tab.TunnelCollapseAnalysis,
   });
 
   const currentTab = activeTabs[activeInfrastructure.subCategory] || Tab.DecisionModel;
@@ -96,12 +110,27 @@ const App: React.FC = () => {
         return <RoadbedMeasureLibrary />;
       case Tab.RoadbedDiseaseAtlas:
         return <RoadbedDiseaseAtlas />;
-      case Tab.RoadbedClassicCases:
-        return <RoadbedClassicCases />;
+      // Retaining Specific Modules
+      case Tab.RetainingAnalysis:
+        return <RetainingAnalysis />;
+      case Tab.RetainingTypicalCases:
+        return <RetainingTypicalCases />;
+      case Tab.RetainingHistory:
+        return <RetainingHistoryLibrary />;
+      case Tab.RetainingMeasures:
+        return <RetainingMeasureLibrary />;
+      case Tab.RetainingDiseaseAtlas:
+        return <RetainingDiseaseAtlas />;
+      case Tab.RetainingClassicCases:
+        return <RetainingClassicCases />;
 
       // Bridge Specific Modules
       case Tab.BridgeAnalysis:
         return <BridgeAnalysis />;
+      case Tab.BridgeGirderAnalysis:
+        return <BridgeGirderAnalysis />;
+      case Tab.BridgeComponentAnalysis:
+        return <BridgeComponentAnalysis />;
       case Tab.BridgeTypicalCases:
         return <BridgeTypicalCases />;
       case Tab.BridgeHistory:
@@ -116,6 +145,10 @@ const App: React.FC = () => {
       // Tunnel Specific Modules
       case Tab.TunnelAnalysis:
         return <TunnelAnalysis />;
+      case Tab.TunnelVoidAnalysis:
+        return <TunnelVoidAnalysis />;
+      case Tab.TunnelCollapseAnalysis:
+        return <TunnelCollapseAnalysis />;
       case Tab.TunnelTypicalCases:
         return <TunnelTypicalCases />;
       case Tab.TunnelHistory:
@@ -159,45 +192,58 @@ const App: React.FC = () => {
     }
   };
 
-  // Menu Configurations
-  const roadbedMenu = [
-    { id: Tab.RoadbedTypicalCases, label: '典型案例库', icon: ClipboardList },
-    { id: Tab.RoadbedHistory, label: '历史训练库', icon: History },
-    { id: Tab.RoadbedMeasures, label: '加固措施库', icon: ShieldCheck },
-    { id: Tab.RoadbedDiseaseAtlas, label: '病害等级图谱', icon: Microscope },
-    { id: Tab.RoadbedClassicCases, label: '经典案例库', icon: BookOpen },
-  ];
+  const getScenarioMenu = (subCategory: InfrastructureSubCategory) => {
+    switch (subCategory) {
+      case 'roadbed':
+        return [
+          { id: Tab.RoadbedTypicalCases, label: '典型案例库', icon: ClipboardList },
+          { id: Tab.RoadbedHistory, label: '历史训练库', icon: History },
+          { id: Tab.RoadbedMeasures, label: '加固措施库', icon: ShieldCheck },
+          { id: Tab.RoadbedDiseaseAtlas, label: '病害等级图谱', icon: Microscope },
+          { id: Tab.RoadbedClassicCases, label: '经典案例库', icon: BookOpen },
+        ];
+      case 'slope':
+        return [
+          { id: Tab.SlopeTypicalCases, label: '典型案例库', icon: ClipboardList },
+          { id: Tab.SlopeHistory, label: '历史训练库', icon: History },
+          { id: Tab.SlopeMeasures, label: '加固措施库', icon: ShieldCheck },
+          { id: Tab.SlopeDiseaseAtlas, label: '病害等级图谱', icon: Microscope },
+          { id: Tab.SlopeClassicCases, label: '经典案例库', icon: BookOpen },
+        ];
+      case 'retaining':
+        return [
+          { id: Tab.RetainingTypicalCases, label: '典型案例库', icon: ClipboardList },
+          { id: Tab.RetainingHistory, label: '历史训练库', icon: History },
+          { id: Tab.RetainingMeasures, label: '加固措施库', icon: ShieldCheck },
+          { id: Tab.RetainingDiseaseAtlas, label: '病害等级图谱', icon: Microscope },
+          { id: Tab.RetainingClassicCases, label: '经典案例库', icon: BookOpen },
+        ];
+      case 'pier_deviation':
+      case 'girder_collapse':
+      case 'component_damage':
+        return [
+          { id: Tab.BridgeTypicalCases, label: '典型案例库', icon: ClipboardList },
+          { id: Tab.BridgeHistory, label: '历史训练库', icon: History },
+          { id: Tab.BridgeMeasures, label: '加固措施库', icon: ShieldCheck },
+          { id: Tab.BridgeDiseaseAtlas, label: '病害等级图谱', icon: Microscope },
+          { id: Tab.BridgeClassicCases, label: '经典案例库', icon: BookOpen },
+        ];
+      case 'lining_damage':
+      case 'void_behind':
+      case 'collapse_block':
+        return [
+          { id: Tab.TunnelTypicalCases, label: '典型案例库', icon: ClipboardList },
+          { id: Tab.TunnelHistory, label: '历史训练库', icon: History },
+          { id: Tab.TunnelMeasures, label: '加固措施库', icon: ShieldCheck },
+          { id: Tab.TunnelDiseaseAtlas, label: '病害等级图谱', icon: Microscope },
+          { id: Tab.TunnelClassicCases, label: '经典案例库', icon: BookOpen },
+        ];
+      default:
+        return [];
+    }
+  };
 
-  const slopeMenu = [
-    { id: Tab.SlopeTypicalCases, label: '典型案例库', icon: ClipboardList },
-    { id: Tab.SlopeHistory, label: '历史训练库', icon: History },
-    { id: Tab.SlopeMeasures, label: '加固措施库', icon: ShieldCheck },
-    { id: Tab.SlopeDiseaseAtlas, label: '病害等级图谱', icon: Microscope },
-    { id: Tab.SlopeClassicCases, label: '经典案例库', icon: BookOpen },
-  ];
-
-  const bridgeMenu = [
-    { id: Tab.BridgeTypicalCases, label: '典型案例库', icon: ClipboardList },
-    { id: Tab.BridgeHistory, label: '历史训练库', icon: History },
-    { id: Tab.BridgeMeasures, label: '加固措施库', icon: ShieldCheck },
-    { id: Tab.BridgeDiseaseAtlas, label: '病害等级图谱', icon: Microscope },
-    { id: Tab.BridgeClassicCases, label: '经典案例库', icon: BookOpen },
-  ];
-
-  const tunnelMenu = [
-    { id: Tab.TunnelTypicalCases, label: '典型案例库', icon: ClipboardList },
-    { id: Tab.TunnelHistory, label: '历史训练库', icon: History },
-    { id: Tab.TunnelMeasures, label: '加固措施库', icon: ShieldCheck },
-    { id: Tab.TunnelDiseaseAtlas, label: '病害等级图谱', icon: Microscope },
-    { id: Tab.TunnelClassicCases, label: '经典案例库', icon: BookOpen },
-  ];
-
-  const activeMenu = activeInfrastructure.subCategory === 'roadbed' 
-    ? roadbedMenu 
-    : (activeInfrastructure.subCategory === 'slope' 
-        ? slopeMenu 
-        : (activeInfrastructure.subCategory === 'bridge_pier' ? bridgeMenu : 
-           (['tunnel_lining', 'tunnel_portal'].includes(activeInfrastructure.subCategory) ? tunnelMenu : [])));
+  const activeMenu = getScenarioMenu(activeInfrastructure.subCategory);
 
   const categories: { id: InfrastructureCategory; name: string; icon: any }[] = [
     { id: 'road', name: '道路工程', icon: Map },
@@ -209,13 +255,17 @@ const App: React.FC = () => {
     road: [
       { id: 'roadbed', name: '路基模块', icon: Activity },
       { id: 'slope', name: '边坡模块', icon: Mountain },
+      { id: 'retaining', name: '支挡模块', icon: Layers },
     ],
     bridge: [
-      { id: 'bridge_pier', name: '下部结构', icon: Layers },
+      { id: 'pier_deviation', name: '桥墩偏位', icon: Layers },
+      { id: 'girder_collapse', name: '梁体垮塌', icon: Layers },
+      { id: 'component_damage', name: '构件损伤', icon: Layers },
     ],
     tunnel: [
-      { id: 'tunnel_lining', name: '隧道衬砌', icon: Layers },
-      { id: 'tunnel_portal', name: '隧道洞口', icon: Layers },
+      { id: 'lining_damage', name: '衬砌破损', icon: Layers },
+      { id: 'void_behind', name: '壁后脱空', icon: Layers },
+      { id: 'collapse_block', name: '坍塌封堵', icon: Layers },
     ],
   };
 
@@ -245,12 +295,17 @@ const App: React.FC = () => {
           <button 
             onClick={() => {
               if (activeInfrastructure.subCategory === 'roadbed') handleTabChange(Tab.RoadbedAnalysis);
-              else if (activeInfrastructure.subCategory === 'bridge_pier') handleTabChange(Tab.BridgeAnalysis);
-              else if (['tunnel_lining', 'tunnel_portal'].includes(activeInfrastructure.subCategory)) handleTabChange(Tab.TunnelAnalysis);
+              else if (activeInfrastructure.subCategory === 'retaining') handleTabChange(Tab.RetainingAnalysis);
+              else if (activeInfrastructure.subCategory === 'pier_deviation') handleTabChange(Tab.BridgeAnalysis);
+              else if (activeInfrastructure.subCategory === 'girder_collapse') handleTabChange(Tab.BridgeGirderAnalysis);
+              else if (activeInfrastructure.subCategory === 'component_damage') handleTabChange(Tab.BridgeComponentAnalysis);
+              else if (activeInfrastructure.subCategory === 'lining_damage') handleTabChange(Tab.TunnelAnalysis);
+              else if (activeInfrastructure.subCategory === 'void_behind') handleTabChange(Tab.TunnelVoidAnalysis);
+              else if (activeInfrastructure.subCategory === 'collapse_block') handleTabChange(Tab.TunnelCollapseAnalysis);
               else handleTabChange(Tab.DecisionModel);
             }}
             className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-              (currentTab === Tab.DecisionModel || currentTab === Tab.RoadbedAnalysis || currentTab === Tab.BridgeAnalysis || currentTab === Tab.TunnelAnalysis) 
+              (currentTab === Tab.DecisionModel || currentTab === Tab.RoadbedAnalysis || currentTab === Tab.BridgeAnalysis || currentTab === Tab.BridgeGirderAnalysis || currentTab === Tab.BridgeComponentAnalysis || currentTab === Tab.TunnelAnalysis || currentTab === Tab.TunnelVoidAnalysis || currentTab === Tab.TunnelCollapseAnalysis) 
               ? 'bg-blue-600 text-white shadow-md shadow-blue-900/20' 
               : 'text-slate-400 hover:bg-slate-800 hover:text-white'
             }`}
