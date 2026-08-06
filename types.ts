@@ -45,10 +45,29 @@ export enum Tab {
 }
 
 export type InfrastructureCategory = 'road' | 'bridge' | 'tunnel';
+export type EngineeringSector = InfrastructureCategory;
+
+export type SimulationScenario = 
+  // 道路工程
+  | 'subgrade_settlement'  // 路基沉降
+  | 'slope_instability'    // 边坡失稳
+  | 'retaining_structure'  // 支挡结构
+  // 桥梁工程
+  | 'pier_impact'          // 桥墩偏位
+  | 'girder_unseating'     // 梁体垮塌
+  | 'component_corrosion'  // 构件损伤
+  // 隧道工程
+  | 'rock_pressure'        // 围岩压力
+  | 'lining_void'          // 衬砌脱空
+  | 'crown_collapse';      // 拱顶坍方
+
+export type FeatureModuleTab = 'simulation' | 'disease' | 'reinforcement' | 'knowledge';
+
 export type InfrastructureSubCategory = 
-  'roadbed' | 'slope' | 'retaining' | 
-  'pier_deviation' | 'girder_collapse' | 'component_damage' | 
-  'lining_damage' | 'void_behind' | 'collapse_block';
+  | 'roadbed' | 'slope' | 'retaining' 
+  | 'pier_deviation' | 'girder_collapse' | 'component_damage' 
+  | 'lining_damage' | 'void_behind' | 'collapse_block'
+  | SimulationScenario;
 
 export interface InfrastructureState {
   category: InfrastructureCategory;

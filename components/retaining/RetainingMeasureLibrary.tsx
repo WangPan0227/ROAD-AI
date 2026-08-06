@@ -11,7 +11,7 @@ const RetainingMeasureLibrary: React.FC = () => {
   ];
 
   return (
-    <div className="p-8 bg-slate-50 min-h-full">
+    <div className="p-8 pb-16 bg-slate-50 min-h-full">
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center space-x-3 mb-10">
           <div className="bg-indigo-600 p-2.5 rounded-2xl shadow-lg shadow-indigo-200">

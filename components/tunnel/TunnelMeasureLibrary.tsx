@@ -139,7 +139,7 @@ const TunnelMeasureLibrary: React.FC = () => {
       </div>
 
       {/* 右侧详情面板 */}
-      <div className="flex-1 flex flex-col h-full overflow-y-auto bg-gray-50 p-6">
+      <div className="flex-1 flex flex-col h-full overflow-y-auto bg-gray-50 p-6 pb-16">
          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="bg-slate-800 px-8 py-6 relative">
                 <div className="absolute top-6 right-8">

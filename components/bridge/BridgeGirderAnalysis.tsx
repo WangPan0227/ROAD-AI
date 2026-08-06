@@ -1,25 +1,40 @@
-import React, { useState, useEffect } from 'react';
-import { ShieldAlert, ShieldCheck, Activity, Settings, Info, Gauge, Zap, Rocket, AlertTriangle } from 'lucide-react';
-import { calculate_girder_unseating } from '../../lib/bridgeCalculations';
+import React, { useState } from 'react';
+import { Activity, Settings, Zap, Rocket, AlertTriangle } from 'lucide-react';
+import { calculate_girder_unseating, SeismicGirderParams } from '../../lib/bridgeCalculations';
+import { KPICard } from '../common/KPICard';
 
 const BridgeGirderAnalysis: React.FC = () => {
   const [isCalculating, setIsCalculating] = useState(false);
-  const [params, setParams] = useState(() => {
+  const [params, setParams] = useState<SeismicGirderParams>(() => {
     const pendingLoad = typeof window !== 'undefined' ? localStorage.getItem('roadbedguard_pending_bridge_girder_load') : null;
     if (pendingLoad) {
       try {
-        return JSON.parse(pendingLoad);
+        const parsed = JSON.parse(pendingLoad);
+        return {
+          span: parsed.span || parsed.span_length || 30,
+          mass: parsed.mass || 800,
+          K_total: parsed.K_total || 50,
+          support_length: parsed.support_length || parsed.support_length_mm || 800,
+          bridge_class: parsed.bridge_class || 'A',
+          site_class: parsed.site_class || 'III',
+          intensity: parsed.intensity || 7
+        };
       } catch (e) {
         console.error("Failed to parse bridge girder load", e);
       }
     }
     return {
-      span_length: 30, // m
-      support_length: 80, // cm
-      pier_disp_cm: 20 // cm
+      span: 30,           // 主梁跨径 L (m)
+      mass: 800,          // 墩梁上部质量 M (t)
+      K_total: 50,        // 支座/墩柱总刚度 K_total (kN/mm)
+      support_length: 800,// 盖梁实际有效支撑长度 Na (mm)
+      bridge_class: 'A',  // 桥梁类别
+      site_class: 'III',  // 场地类别
+      intensity: 7        // 烈度
     };
   });
-  const [results, setResults] = useState<any>(() => {
+
+  const [results, setResults] = useState(() => {
     const res = calculate_girder_unseating(params);
     if (typeof window !== 'undefined' && localStorage.getItem('roadbedguard_pending_bridge_girder_load')) {
        localStorage.removeItem('roadbedguard_pending_bridge_girder_load');
@@ -27,258 +42,311 @@ const BridgeGirderAnalysis: React.FC = () => {
     return res;
   });
 
-  const updateParam = (key: string, value: any) => {
-    setParams(prev => ({ ...prev, [key]: value }));
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const timer = setTimeout(() => {
+      const pending = localStorage.getItem('pending_injected_disease_girder_unseating');
+      if (pending) {
+        try {
+          const parsed = JSON.parse(pending);
+          if (parsed.injectedParameters) {
+            const { intensity_boost, support_loss } = parsed.injectedParameters;
+            setParams(prev => {
+              const next = {
+                ...prev,
+                intensity: Math.min(9, 7 + (intensity_boost || 0)),
+                support_length: Math.max(300, 800 - (support_loss || 0))
+              };
+              setResults(calculate_girder_unseating(next));
+              return next;
+            });
+            localStorage.removeItem('pending_injected_disease_girder_unseating');
+          }
+        } catch (e) {
+          console.error("Error reading girder unseating disease", e);
+        }
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const updateParam = (key: keyof SeismicGirderParams, value: any) => {
+    setParams(prev => {
+      const next = { ...prev, [key]: value };
+      setResults(calculate_girder_unseating(next));
+      return next;
+    });
   };
 
   const runAnalysis = () => {
     setIsCalculating(true);
-    const res = calculate_girder_unseating(params);
-    setResults(res);
-    setIsCalculating(false);
+    setTimeout(() => {
+      const res = calculate_girder_unseating(params);
+      setResults(res);
+      setIsCalculating(false);
+    }, 150);
   };
 
-  useEffect(() => {
-    // Component initialized
-  }, []);
+  const { T, Sa, delta_rel, Na_actual, Na_req, SF, Ci, Cs, status } = results;
 
   return (
-    <div className="flex flex-col h-full bg-gray-100 text-gray-800 font-sans overflow-hidden">
-      <div className="flex-1 flex overflow-hidden">
+    <div className="flex flex-col h-full bg-slate-950 text-slate-100 font-sans overflow-hidden p-6">
+      <div className="flex-1 flex overflow-hidden gap-6">
         {/* 左侧参数区 */}
-        <div className="w-80 bg-white border-r border-gray-200 flex flex-col overflow-hidden relative shadow-sm">
-          <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50 sticky top-0 z-10">
-            <span className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center">
-              <Settings className="w-3.5 h-3.5 mr-2 text-blue-600" /> 几何边界参数
+        <div className="w-80 bg-slate-900/90 border border-slate-800 rounded-2xl shadow-xl backdrop-blur-md p-5 flex flex-col overflow-hidden relative flex-shrink-0">
+          <div className="pb-3 border-b border-slate-800 flex items-center justify-between sticky top-0 z-10 bg-slate-900/90">
+            <span className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center">
+              <Settings className="w-3.5 h-3.5 mr-2 text-sky-400" /> 结构与抗震边界参数
             </span>
           </div>
           
-          <div className="flex-1 p-5 space-y-6 overflow-y-auto custom-scrollbar">
-            <div className="space-y-4">
-              <h4 className="font-bold text-gray-400 text-[10px] uppercase tracking-widest flex items-center">
-                结构几何模型
-              </h4>
-              <div className="bg-gray-50 p-4 rounded-sm border border-gray-200 space-y-4">
-                <div>
-                  <label className="block text-[10px] text-gray-500 uppercase mb-1 font-bold">主梁跨径 L (m)</label>
-                  <input type="number" className="w-full bg-white border border-gray-200 rounded-sm p-2 text-sm font-medium text-gray-900 focus:border-blue-500 outline-none" value={params.span_length} onChange={e => updateParam('span_length', parseFloat(e.target.value))} />
-                </div>
-                <div>
-                  <label className="block text-[10px] text-gray-500 uppercase mb-1 font-bold">设计搭接长度 a0 (cm)</label>
-                  <input type="number" className="w-full bg-white border border-gray-200 rounded-sm p-2 text-sm font-medium text-gray-900 focus:border-blue-500 outline-none" value={params.support_length} onChange={e => updateParam('support_length', parseFloat(e.target.value))} />
-                </div>
+          <div className="flex-1 pt-3 space-y-4 overflow-y-auto custom-scrollbar pr-1">
+            {/* 1. 结构几何与质量刚度 */}
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">结构体系参数</div>
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded-xl border border-slate-700/60">
+                <label className="text-slate-300 font-medium">主梁跨径 L (m)</label>
+                <input 
+                  type="number" step="1"
+                  className="w-20 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-right text-sky-400 font-mono text-xs font-bold focus:outline-none" 
+                  value={params.span} 
+                  onChange={e => updateParam('span', parseFloat(e.target.value) || 0)} 
+                />
+              </div>
+              <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded-xl border border-slate-700/60">
+                <label className="text-slate-300 font-medium">墩梁上部质量 M (t)</label>
+                <input 
+                  type="number" step="10"
+                  className="w-20 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-right text-sky-400 font-mono text-xs font-bold focus:outline-none" 
+                  value={params.mass} 
+                  onChange={e => updateParam('mass', parseFloat(e.target.value) || 0)} 
+                />
+              </div>
+              <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded-xl border border-slate-700/60">
+                <label className="text-slate-300 font-medium">总刚度 K_total (kN/mm)</label>
+                <input 
+                  type="number" step="1"
+                  className="w-20 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-right text-sky-400 font-mono text-xs font-bold focus:outline-none" 
+                  value={params.K_total} 
+                  onChange={e => updateParam('K_total', parseFloat(e.target.value) || 0)} 
+                />
+              </div>
+              <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded-xl border border-slate-700/60">
+                <label className="text-slate-300 font-medium">支撑长度 Na (mm)</label>
+                <input 
+                  type="number" step="10"
+                  className="w-20 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-right text-sky-400 font-mono text-xs font-bold focus:outline-none" 
+                  value={params.support_length} 
+                  onChange={e => updateParam('support_length', parseFloat(e.target.value) || 0)} 
+                />
               </div>
             </div>
 
-            <div className="space-y-4 pt-4 border-t border-gray-100">
-              <h4 className="font-bold text-gray-400 text-[10px] uppercase tracking-widest flex items-center">
-                实测变位数据
-              </h4>
-              <div className="bg-blue-50/30 p-4 rounded-sm border border-blue-100 space-y-4">
-                <div className="relative">
-                  <label className="block text-[10px] text-blue-700 uppercase font-bold mb-2">相对位移检测 Δ (cm)</label>
-                  <div className="relative">
-                    <input 
-                      type="number" 
-                      className="w-full bg-white border border-blue-200 rounded-sm p-3 text-lg font-bold text-blue-700 focus:border-blue-500 outline-none pr-12" 
-                      value={params.pier_disp_cm} 
-                      onChange={e => updateParam('pier_disp_cm', parseFloat(e.target.value))} 
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-blue-300">CM</span>
-                  </div>
-                </div>
+            {/* 2. 抗震设防与场地条件 */}
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pt-2">抗震设防与场地条件</div>
+            <div className="space-y-2 text-xs">
+              <div>
+                <label className="text-slate-400 text-xs mb-1 block">桥梁工程类别</label>
+                <select 
+                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-1.5 text-xs font-mono text-slate-200 focus:outline-none focus:border-sky-500"
+                  value={params.bridge_class}
+                  onChange={e => updateParam('bridge_class', e.target.value as any)}
+                >
+                  <option value="A">A类 (特大桥/重要桥梁, Ci=1.70)</option>
+                  <option value="B_express">B类 (高速/一级公路, Ci=1.70)</option>
+                  <option value="B_normal">B类 (二级公路, Ci=1.30)</option>
+                  <option value="C">C类 (三/四级公路, Ci=1.00)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-slate-400 text-xs mb-1 block">场地工程类别</label>
+                <select 
+                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-1.5 text-xs font-mono text-slate-200 focus:outline-none focus:border-sky-500"
+                  value={params.site_class}
+                  onChange={e => updateParam('site_class', e.target.value as any)}
+                >
+                  <option value="I">I 类场地 (坚硬岩石, Cs=0.85)</option>
+                  <option value="II">II 类场地 (中硬土, Cs=1.00)</option>
+                  <option value="III">III 类场地 (软弱土/一般土, Cs=1.25)</option>
+                  <option value="IV">IV 类场地 (淤泥/极软土, Cs=1.50)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-slate-400 text-xs mb-1 block">地震烈度 (E2设防)</label>
+                <select 
+                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-1.5 text-xs font-mono text-slate-200 focus:outline-none focus:border-sky-500"
+                  value={params.intensity}
+                  onChange={e => updateParam('intensity', parseInt(e.target.value, 10))}
+                >
+                  <option value={7}>7度 (0.10g 罕遇地震)</option>
+                  <option value={8}>8度 (0.20g 罕遇地震)</option>
+                  <option value={9}>9度 (0.40g 罕遇地震)</option>
+                </select>
               </div>
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-100 bg-gray-50">
+          <div className="pt-4 border-t border-slate-800">
             <button 
               onClick={runAnalysis}
               disabled={isCalculating}
-              className={`w-full py-3 rounded-sm font-bold text-xs uppercase tracking-widest flex items-center justify-center space-x-2 transition-all active:scale-95 shadow-sm ${isCalculating ? 'bg-gray-200 text-gray-500' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+              className={`w-full bg-sky-600 hover:bg-sky-500 text-white font-medium px-4 py-2.5 rounded-xl shadow-lg shadow-sky-600/20 transition-all flex items-center justify-center space-x-2 ${
+                isCalculating ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             >
-              {isCalculating ? (
-                <>
-                  <Activity className="w-4 h-4 animate-spin" />
-                  <span>CALCULATING...</span>
-                </>
-              ) : (
-                <>
-                  <Rocket className="w-3" />
-                  <span>落梁仿真计算</span>
-                </>
-              )}
+              {isCalculating ? <Activity className="animate-spin h-4 w-4" /> : <Rocket className="h-4 w-4" />}
+              <span>{isCalculating ? 'SOLVING...' : 'E2罕遇地震落梁仿真评估'}</span>
             </button>
           </div>
         </div>
 
         {/* 右侧主视口 */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-gray-100">
+        <div className="flex-1 flex flex-col overflow-hidden space-y-5">
           {/* Header */}
-          <div className="h-14 border-b border-gray-200 px-8 flex items-center justify-between bg-white relative z-20 shadow-sm">
+          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl shadow-xl backdrop-blur-md p-5 flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-blue-50 rounded-sm border border-blue-100">
-                <AlertTriangle className="w-5 h-5 text-blue-600" />
+              <div className="p-2.5 bg-sky-500/10 rounded-xl border border-sky-500/20">
+                <AlertTriangle className="w-5 h-5 text-sky-400" />
               </div>
               <div>
-                <h2 className="text-sm font-bold text-gray-800 tracking-tight uppercase">梁体垮塌/落梁仿真视窗</h2>
-                <div className="flex items-center space-x-2">
-                   <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">ENGINE: UNSEAT_CORE_V2 // JTG D62</span>
-                </div>
+                <h2 className="text-xs font-bold text-slate-100 tracking-wider uppercase">场景 2.2：梁体垮塌 | 梁体垮塌/落梁抗震安全评估</h2>
+                <span className="text-[10px] text-slate-400 font-mono">E2 REACTION SPECTRUM MODEL // JTG/T 2231-01-2020</span>
               </div>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-8 bg-gray-50 custom-scrollbar relative">
-            {!results ? null : (
-              <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                {/* Result Grid */}
-                <div className="grid grid-cols-3 gap-6">
-                  <div className="bg-white p-5 rounded-sm border border-gray-200 shadow-sm">
-                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">规范最小搭接长度 (N)</div>
-                    <div className="flex items-baseline space-x-2">
-                       <div className="text-3xl font-bold text-gray-900 font-mono">{(results?.N_req ?? 0).toFixed(1)}</div>
-                       <div className="text-[10px] text-gray-400 font-bold uppercase">CM</div>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-white p-5 rounded-sm border border-gray-200 shadow-sm">
-                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">剩余支承余量 (S)</div>
-                    <div className="flex items-baseline space-x-2">
-                       <div className={`text-3xl font-bold font-mono ${(results?.remaining_support ?? 0) < 10 ? 'text-red-600' : 'text-gray-900'}`}>
-                          {(results?.remaining_support ?? 0).toFixed(1)}
-                       </div>
-                       <div className="text-[10px] text-gray-400 font-bold uppercase">CM</div>
-                    </div>
-                  </div>
-
-                  <div className={`p-5 rounded-sm border flex flex-col justify-center shadow-sm ${results.is_unseated ? 'bg-red-50 border-red-200 text-red-600' : 'bg-emerald-50 border-emerald-200 text-emerald-600'}`}>
-                     <div className="flex items-center space-x-3">
-                        <div className={`p-2 rounded-full ${results.is_unseated ? 'bg-red-100' : 'bg-emerald-100'}`}>
-                           {results.is_unseated ? <ShieldAlert className="w-5 h-5 text-red-600" /> : <ShieldCheck className="w-5 h-5 text-emerald-600" />}
-                        </div>
-                        <div>
-                           <div className="text-[9px] font-bold uppercase tracking-widest opacity-60">结构安全性评级</div>
-                           <h3 className="text-xs font-bold uppercase tracking-tight">
-                              {results.is_unseated ? '梁体现存落梁垮塌风险' : '支承安全余量充足'}
-                           </h3>
-                        </div>
-                     </div>
-                  </div>
-                </div>
-
-                {/* Main Visualization Container */}
-                <div className="bg-white rounded-sm border border-gray-200 p-10 shadow-sm flex flex-col items-center justify-center relative overflow-hidden min-h-[440px]">
-                   <div className="absolute top-6 left-8 flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-blue-600 rounded-full" />
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">仿真模型渲染 (High Fidelity)</span>
-                   </div>
-
-                   <svg width="600" height="280" viewBox="0 0 600 280" className="relative z-10">
-                      <defs>
-                        {/* Photorealistic Filters */}
-                        <filter id="concreteNoise" x="0" y="0" width="100%" height="100%">
-                          <feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="3" result="noise" />
-                          <feDiffuseLighting in="noise" lightingColor="#f3f4f6" surfaceScale="2">
-                            <feDistantLight elevation="45" azimuth="45" />
-                          </feDiffuseLighting>
-                        </filter>
-                        
-                        <pattern id="concreteTexture" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
-                           <rect width="100" height="100" fill="#f1f5f9" />
-                           <circle cx="20" cy="20" r="1" fill="#cbd5e1" />
-                           <circle cx="80" cy="40" r="1.5" fill="#e2e8f0" />
-                           <circle cx="50" cy="70" r="1" fill="#cbd5e1" />
-                        </pattern>
-
-                        <linearGradient id="metalGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                          <stop offset="0%" stopColor="#94a3b8" />
-                          <stop offset="50%" stopColor="#cbd5e1" />
-                          <stop offset="100%" stopColor="#94a3b8" />
-                        </linearGradient>
-
-                        <filter id="shadowHeavy">
-                          <feDropShadow dx="0" dy="10" stdDeviation="5" shadowOpacity="0.2" />
-                        </filter>
-                      </defs>
-                      
-                      {/* Floor Line */}
-                      <line x1="0" y1="240" x2="600" y2="240" stroke="#e2e8f0" strokeWidth="1" />
-                      
-                      {/* Fixed Pier (Reference) */}
-                      <g opacity={results.is_unseated ? 0.4 : 1}>
-                        <rect x="80" y="120" width="80" height="120" fill="url(#concreteTexture)" stroke="#94a3b8" strokeWidth="0.5" filter="url(#concreteNoise)" />
-                        <rect x="60" y="110" width="120" height="12" fill="url(#metalGrad)" stroke="#64748b" strokeWidth="1" rx="1" />
-                      </g>
-                      
-                      {/* Target Pier (Moving) */}
-                      <g>
-                        <rect x="420" y="120" width="80" height="120" fill="url(#concreteTexture)" stroke="#94a3b8" strokeWidth="0.5" filter="url(#concreteNoise)" />
-                        <rect x="400" y="110" width="120" height="12" fill="url(#metalGrad)" stroke="#64748b" strokeWidth="1" rx="1" />
-                        {/* Displacement Indicator */}
-                        <line x1="460" y1="245" x2={460 + params.pier_disp_cm * 2} y2="245" stroke="#3b82f6" strokeWidth="1" markerEnd="url(#arrow-blue)" />
-                      </g>
-
-                      {/* Bridge Girder - Realistic Render */}
-                      <g style={{ transition: 'all 1.2s cubic-bezier(0.4, 0, 0.2, 1)' }} 
-                         transform={`translate(${params.pier_disp_cm * 2}, ${results.is_unseated ? 80 : 0}) rotate(${results.is_unseated ? 15 : 0}, 300, 80)`}
-                         filter="url(#shadowHeavy)">
-                        <rect x="100" y="70" width="400" height="30" fill="url(#concreteTexture)" stroke="#64748b" strokeWidth="1" rx="1" filter="url(#concreteNoise)" />
-                        {/* Detail lines on girder */}
-                        <line x1="100" y1="85" x2="500" y2="85" stroke="#cbd5e1" strokeWidth="0.5" strokeOpacity="0.5" />
-                        <text x="300" y="88" textAnchor="middle" fill="#64748b" fontSize="8" fontWeight="bold" className="uppercase tracking-[0.3em] opacity-30">Prestressed_Reinforced_Girder</text>
-                      </g>
-                      
-                      {/* Technical Dimension Lines */}
-                      <g opacity="0.5" fontSize="8" fontWeight="bold" fill="#64748b">
-                         <line x1={180 - results.N_req} y1="30" x2={180 - results.N_req} y2="220" stroke="#ef4444" strokeWidth="0.8" strokeDasharray="3 3" />
-                         <text x={185 - results.N_req} y="40" fill="#ef4444">Req N_{results.N_req.toFixed(1)}</text>
-                         
-                         <line x1="180" y1="30" x2="180" y2="220" stroke="#3b82f6" strokeWidth="0.8" strokeDasharray="3 3" />
-                         <text x="185" y="55" fill="#3b82f6">Baseline</text>
-                      </g>
-
-                      {/* Marker Defs */}
-                      <defs>
-                        <marker id="arrow-blue" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-                          <polygon points="0 0, 10 3.5, 0 7" fill="#3b82f6" />
-                        </marker>
-                      </defs>
-                   </svg>
-                   
-                   <div className="mt-8 flex justify-between items-center bg-gray-50 px-8 py-4 rounded-sm border border-gray-200 w-full max-w-2xl text-[10px] font-bold text-gray-500 uppercase">
-                      <div className="flex items-center space-x-3">
-                         <div className="w-2.5 h-2.5 bg-blue-600 rounded-sm" />
-                         <span>桥墩相对变位监测 Δ</span>
-                      </div>
-                      <div className="flex items-center space-x-8 font-mono">
-                         <div>风险比率: <span className={(results?.risk_ratio ?? 0) >= 0.8 ? 'text-red-600' : 'text-blue-700'}>{((results?.risk_ratio ?? 0) * 100).toFixed(2)}%</span></div>
-                         <div className="w-[1px] h-4 bg-gray-300" />
-                         <div>稳定余量: <span className="text-gray-900">{results?.is_unseated ? '0.00' : (results?.remaining_support ?? 0).toFixed(2)}cm</span></div>
-                      </div>
-                   </div>
-                </div>
-
-                {/* AI Recommendation */}
-                <div className="bg-white border border-gray-200 rounded-sm p-6 shadow-sm relative overflow-hidden group">
-                   <div className="flex items-start space-x-4">
-                     <div className="p-3 bg-blue-50 rounded-sm border border-blue-100 mt-1">
-                        <Zap className="w-5 h-5 text-blue-600" />
-                     </div>
-                     <div className="flex-1">
-                       <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center">
-                         AI 加固决策建议 (Decision Assistance)
-                       </h4>
-                       <p className="text-sm leading-relaxed text-gray-700 font-medium tracking-tight">
-                         {results.is_unseated 
-                           ? '🚨 危险通告：结构已触发落梁阈值。仿真显示主梁重心已偏离支撑中心。当前建议：1. 立即实施交通导流及封闭；2. 部署紧急钢结构冗余支撑（I型紧急支架）；3. 开展桥梁顶升复位后的支座更换与限位件补强。' 
-                           : '⚖️ 运行评估：当前支承宽度满足规范最小要求。由于相对位移 Δ 仍在可控区间，建议维持日常巡检强度，并安装桥梁健康监测（SHM）倾角传感器，重点关注环境温差及重载通行下的累织位移发展。'}
-                       </p>
-                     </div>
-                   </div>
-                </div>
+          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-5 pr-1 pb-10">
+            <div className="space-y-5 animate-in fade-in duration-500">
+              {/* 4 Main Parameter KPI Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <KPICard
+                  title="垮塌安全系数 (SF)"
+                  value={SF.toFixed(2)}
+                  subtitle={`状态: ${status === 'safe' ? '安全 (SAFE)' : status === 'warning' ? '预警 (WARNING)' : '危险 (CRITICAL)'}`}
+                  status={status === 'safe' ? 'safe' : status === 'warning' ? 'warning' : 'critical'}
+                />
+                <KPICard
+                  title="E2相对位移响应 Δ_rel"
+                  value={delta_rel.toFixed(1)}
+                  unit="mm"
+                  subtitle={`自振周期 T = ${T.toFixed(3)} s`}
+                  status="neutral"
+                />
+                <KPICard
+                  title="设计反应谱加速度 S_a"
+                  value={Sa.toFixed(2)}
+                  unit="m/s²"
+                  subtitle={`Ci: ${Ci.toFixed(2)} | Cs: ${Cs.toFixed(2)}`}
+                  status="neutral"
+                />
+                <KPICard
+                  title="最小支撑长度 N_a,req"
+                  value={Na_req.toFixed(0)}
+                  unit="mm"
+                  subtitle={`实际支撑 N_a: ${Na_actual.toFixed(0)} mm`}
+                  status={Na_actual < Na_req ? 'warning' : 'safe'}
+                />
               </div>
-            )}
+
+              {/* Main Visualization Container */}
+              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl backdrop-blur-md flex flex-col items-center justify-center relative overflow-hidden min-h-[380px]">
+                 <div className="absolute top-4 left-5 flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-sky-400 rounded-full" />
+                    <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">E2地震动力位移与支撑边界仿真</span>
+                 </div>
+
+                 <svg width="600" height="260" viewBox="0 0 600 260" className="relative z-10">
+                    <defs>
+                      <marker id="arrow-blue" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                        <polygon points="0 0, 10 3.5, 0 7" fill="#38bdf8" />
+                      </marker>
+                      <marker id="arrow-red" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                        <polygon points="0 0, 10 3.5, 0 7" fill="#f43f5e" />
+                      </marker>
+                    </defs>
+                    
+                    {/* Floor Baseline */}
+                    <line x1="0" y1="220" x2="600" y2="220" stroke="#334155" strokeWidth="1" />
+                    
+                    {/* Left Fixed Pier */}
+                    <g opacity={status === 'critical' ? 0.4 : 1}>
+                      <rect x="80" y="110" width="80" height="110" fill="#1e293b" stroke="#475569" strokeWidth="0.5" />
+                      <rect x="50" y="100" width="140" height="12" fill="#334155" stroke="#475569" strokeWidth="1" rx="1" />
+                      <rect x="100" y="93" width="40" height="7" fill="#475569" rx="1" />
+                    </g>
+                    
+                    {/* Right Pier / Cap Beam */}
+                    <g>
+                      <rect x="420" y="110" width="80" height="110" fill="#1e293b" stroke="#475569" strokeWidth="0.5" />
+                      <rect x="380" y="100" width="160" height="12" fill="#334155" stroke="#475569" strokeWidth="1" rx="1" />
+                      <rect x="440" y="93" width="40" height="7" fill="#475569" rx="1" />
+                      
+                      {/* Seismic displacement vector arrow */}
+                      <line 
+                        x1="460" y1="228" 
+                        x2={460 + Math.min(100, delta_rel / 3)} y2="228" 
+                        stroke={status === 'critical' ? '#f43f5e' : '#38bdf8'} 
+                        strokeWidth="2" 
+                        markerEnd={status === 'critical' ? 'url(#arrow-red)' : 'url(#arrow-blue)'} 
+                      />
+                      <text x="460" y="248" fill={status === 'critical' ? '#f43f5e' : '#38bdf8'} fontSize="9" fontWeight="bold">
+                        E2地震相对位移 Δrel = {delta_rel.toFixed(1)} mm
+                      </text>
+                    </g>
+
+                    {/* Bridge Girder */}
+                    <g style={{ transition: 'all 0.8s ease-in-out' }} 
+                       transform={`translate(${Math.min(120, delta_rel / 3)}, ${status === 'critical' ? 70 : 0}) rotate(${status === 'critical' ? 14 : 0}, 300, 70)`}>
+                      <rect x="90" y="55" width="410" height="38" fill="#1e293b" stroke={status === 'critical' ? '#f43f5e' : '#475569'} strokeWidth="1.5" rx="1" />
+                      <line x1="90" y1="74" x2="500" y2="74" stroke="#334155" strokeWidth="0.5" strokeOpacity="0.5" />
+                      <text x="295" y="78" textAnchor="middle" fill="#94a3b8" fontSize="9" fontWeight="bold" className="uppercase tracking-[0.2em]">
+                        {status === 'critical' ? '⚠️ UNSEATING / GIRDER COLLAPSE RISK' : 'PRESTRESSED CONCRETE BOX GIRDER'}
+                      </text>
+                    </g>
+                    
+                    {/* Dimension Lines */}
+                    <g fontSize="8" fontWeight="bold" fill="#94a3b8">
+                       <line x1="380" y1="20" x2="540" y2="20" stroke="#475569" strokeWidth="0.8" strokeDasharray="2 2" />
+                       <text x="460" y="15" textAnchor="middle" fill="#94a3b8">实际支撑长度 Na = {Na_actual.toFixed(0)} mm</text>
+                    </g>
+                 </svg>
+                 
+                 <div className="mt-4 flex justify-between items-center bg-slate-800/50 px-6 py-2.5 rounded-xl border border-slate-700/60 w-full max-w-2xl text-xs font-bold text-slate-300">
+                    <div className="flex items-center space-x-2">
+                       <div className={`w-2.5 h-2.5 rounded-full ${status === 'safe' ? 'bg-emerald-400' : status === 'warning' ? 'bg-amber-400' : 'bg-rose-500 animate-pulse'}`} />
+                       <span>安全状态评估: {status === 'safe' ? '安全余量充足' : status === 'warning' ? '存在支承预警' : '触发落梁垮塌风险'}</span>
+                    </div>
+                    <div className="flex items-center space-x-6 font-mono">
+                       <div>位移支撑比: <span className={status === 'critical' ? 'text-rose-400 font-bold' : 'text-sky-400'}>{((delta_rel / Math.max(1, Na_actual)) * 100).toFixed(1)}%</span></div>
+                       <div className="w-[1px] h-3 bg-slate-700" />
+                       <div>安全系数 SF: <span className="text-slate-100 font-bold">{SF.toFixed(2)}</span></div>
+                    </div>
+                 </div>
+              </div>
+
+              {/* AI Recommendation */}
+              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl backdrop-blur-md">
+                 <div className="flex items-start space-x-4">
+                   <div className="p-2.5 bg-sky-500/10 rounded-xl border border-sky-500/20 mt-1">
+                      <Zap className="w-5 h-5 text-sky-400" />
+                   </div>
+                   <div className="flex-1">
+                     <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider mb-2">
+                       抗震防落梁决策建议 (E2 Seismic Retrofit Guidance)
+                     </h4>
+                     <p className="text-xs leading-relaxed text-slate-300 font-mono">
+                       {status === 'critical'
+                         ? '🚨 紧急警戒：E2 罕遇地震作用下，相对位移响应已超过盖梁有效支撑长度（SF < 1.0），存在极高落梁垮塌风险！建议方案：1. 盖梁两侧增设拓宽牛腿或钢增设牛腿；2. 节点处安装高强防落梁拉挡块与连杆结构；3. 增设液压黏滞阻力减震器以控制地震位移响应。' 
+                         : status === 'warning'
+                         ? '⚠️ 结构预警：垮塌安全系数 1.0 ≤ SF < 1.5，罕遇地震下余量偏低。建议方案：1. 检查既有板式橡胶支座限位挡块完好度；2. 增设高拉力钢缆防落梁装置；3. 在盖梁侧面预留减隔震装置安装空间。'
+                         : '✅ 结构安全：当前盖梁支撑长度与结构抗震参数满足 E2 罕遇地震防落梁要求（SF ≥ 1.5）。建议保持常规结构健康检测，定期复核支座限位件及纵向拉片锚固状态。'}
+                     </p>
+                   </div>
+                 </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

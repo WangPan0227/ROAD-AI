@@ -1,4 +1,5 @@
 // 文件路径: lib/slopeCalculations.ts
+import { DamageParameters, ReinforcementParameters } from '../types/schema';
 
 // 1. 统一工程与经济配置 (对应 Python 的 ProjectConfig)
 export const DEFAULT_CONFIG = {
@@ -78,11 +79,20 @@ const get_soil_properties = (y: number, layers: any[]) => {
 };
 
 // 替换 lib/slopeCalculations.ts 中的 compute_stability 函数
-export const compute_stability = (geom_func: (x: number) => number, H_max: number, beta_rad: number, cfg: any) => {
+export const compute_stability = (
+    geom_func: (x: number) => number, 
+    H_max: number, 
+    beta_rad: number, 
+    cfg: any,
+    damage_param?: DamageParameters,
+    reinforcement_param?: ReinforcementParameters
+) => {
     const { soil_layers, ...water } = cfg;
     const layers = cfg.Geotech.soil_layers;
     const seismic = cfg.Seismic;
-    const damage = cfg.Damage; 
+    // 优先取入参 damage_param，其次取 cfg.Damage
+    const damage = damage_param || cfg.Damage; 
+    const reinforcement = reinforcement_param || cfg.Reinforcement;
     const L_slope = H_max / Math.tan(beta_rad);
 
     // 提高搜索网格密度
@@ -115,21 +125,16 @@ export const compute_stability = (geom_func: (x: number) => number, H_max: numbe
 // ================= 修复：张裂缝精确水平位置截断算法 =================
                 let crack_water_force = 0;
                 
-                if (damage && damage.crack_depth > 0) {
-                    const hc = damage.crack_depth;
-                    // 【关键变更】：读取前端传来的具体水平位置
+                if (damage && (damage.crack_depth || 0) > 0) {
+                    const hc = damage.crack_depth!;
                     const crack_x = L_slope + (damage.crack_distance || 0); 
                     
-                    // 检查这条裂缝是否落在当前的滑动体范围内
                     if (crack_x > x_start && crack_x < x_end) {
                         const val = R * R - Math.pow(crack_x - Xc, 2);
                         if (val > 0) {
                             const y_intersect = Yc - Math.sqrt(val);
-                            // 如果滑面在此处的高程，高于裂缝底部高程，说明滑面被裂缝切断了！
                             if (y_intersect >= H_max - hc) {
                                 x_end = crack_x; // 强制将滑面终点锁定在裂缝水平位置
-                                
-                                // 计算静水推力 (水压作用于裂缝侧壁)
                                 if (damage.add_water_pressure) {
                                     crack_water_force = 0.5 * 9.81 * Math.pow(hc, 2);
                                 }
@@ -137,8 +142,6 @@ export const compute_stability = (geom_func: (x: number) => number, H_max: numbe
                         }
                     }
                 }
-                // =================================================================
-                // ==========================================================
 
                 const num_slices = 30; 
                 const b = (x_end - x_start) / num_slices;
@@ -161,17 +164,21 @@ export const compute_stability = (geom_func: (x: number) => number, H_max: numbe
                     const props_avg = get_soil_properties((y_surf + y_circ) / 2.0, layers);
                     
                     const W = props_avg.gamma * h * b;
-                    const u = (cfg.Water.has_water && y_circ < cfg.Water.y_gwt) ? cfg.Water.gamma_w * (cfg.Water.y_gwt - y_circ) : 0.0;
+                    let u = (cfg.Water.has_water && y_circ < cfg.Water.y_gwt) ? cfg.Water.gamma_w * (cfg.Water.y_gwt - y_circ) : 0.0;
 
-                    // ================= 修复：仅作全局参数折减 =================
+                    // 后置加固：防渗减阻折减水压
+                    if (reinforcement && reinforcement.seepage_barrier_factor) {
+                        u *= Math.max(0, 1 - reinforcement.seepage_barrier_factor);
+                    }
+
+                    // 前置物理参数损伤折减
                     let s_c = props_base.c;
                     let s_phi = props_base.phi;
 
                     if (damage) {
-                        s_c *= damage.c_factor;
-                        s_phi *= damage.phi_factor;
+                        if (damage.c_factor !== undefined) s_c *= damage.c_factor;
+                        if (damage.phi_factor !== undefined) s_phi *= damage.phi_factor;
                     }
-                    // =======================================================
 
                     slices.push({ W, alpha, b, c: s_c, phi: s_phi * Math.PI / 180, u });
                 }
@@ -179,7 +186,7 @@ export const compute_stability = (geom_func: (x: number) => number, H_max: numbe
                 if (!valid_circle) continue;
 
                 // 计算总驱动力：加上地震力，加上裂缝静水推力
-                const T_drive = slices.reduce((sum, s) => sum + s.W * Math.sin(s.alpha) + seismic.k_h * s.W * Math.cos(s.alpha), 0) + crack_water_force;
+                const T_drive = slices.reduce((sum, s) => sum + s.W * Math.sin(s.alpha) + (seismic.k_h || 0) * s.W * Math.cos(s.alpha), 0) + crack_water_force;
                 if (T_drive <= 0) continue;
 
                 let FS_calc = 1.0;
@@ -187,10 +194,16 @@ export const compute_stability = (geom_func: (x: number) => number, H_max: numbe
                 for (let iter = 0; iter < 15; iter++) {
                     R_resist = 0.0;
                     for (const s of slices) {
-                        const N_eff = Math.max(s.W - s.u * s.b * Math.cos(s.alpha) - seismic.k_h * s.W * Math.sin(s.alpha), 0.0);
+                        const N_eff = Math.max(s.W - s.u * s.b * Math.cos(s.alpha) - (seismic.k_h || 0) * s.W * Math.sin(s.alpha), 0.0);
                         const m_alpha = Math.max(0.01, Math.cos(s.alpha) * (1.0 + Math.tan(s.alpha) * Math.tan(s.phi) / Math.max(0.01, FS_calc)));
                         R_resist += (s.c * s.b + N_eff * Math.tan(s.phi)) / m_alpha;
                     }
+
+                    // 后置加固：加上预应力锚索/锚杆提升的抗滑阻力
+                    if (reinforcement && reinforcement.anchor_tension_force) {
+                        R_resist += reinforcement.anchor_tension_force;
+                    }
+
                     const FS_new = R_resist / Math.max(0.01, T_drive);
                     if (Math.abs(FS_new - FS_calc) < 1e-3) break;
                     FS_calc = FS_new;
@@ -201,7 +214,6 @@ export const compute_stability = (geom_func: (x: number) => number, H_max: numbe
                     best_T = T_drive;
                     best_R = R_resist;
                     best_slip_depth = max_depth;
-                    // 保存截断后的 x_end，以便前端完美绘图
                     best_circle = [Xc, Yc, R, x_end]; 
                 }
             }
@@ -242,6 +254,8 @@ const calc_structural_compensation = (
                         FS: Number(((R_soil_unit + R_prov) / T_unit).toFixed(3)),
                         Cost_W: cost,
                         Time_d: geo_time + (n_total * L / eco.cost_pile[1]),
+                        cost: cost,
+                        schedule: Math.round(geo_time + (n_total * L / eco.cost_pile[1])),
                         Param: geo_param + `桩L=${L}m,@=${spacing}m`,
                         Plot_Data: p_data
                     };
@@ -269,6 +283,8 @@ const calc_structural_compensation = (
                         FS: Number(((R_soil_unit + R_prov) / T_unit).toFixed(3)),
                         Cost_W: cost,
                         Time_d: geo_time + (total_L / eco.cost_anchor[1]),
+                        cost: cost,
+                        schedule: Math.round(geo_time + (total_L / eco.cost_anchor[1])),
                         Param: geo_param + `锚固L_b=${L_bond}m,@=${spacing}m`,
                         Plot_Data: p_data
                     };
@@ -314,6 +330,7 @@ const calc_structural_compensation = (
 
         if (best_half_p_params && best_half_a_params) {
             const cost = geo_cost + best_half_p_cost + best_half_a_cost;
+            const total_time = geo_time + best_half_p_params.time + best_half_a_params.time;
             const p_data = geo_plot_data ? { ...geo_plot_data } : { type: "orig", circle: orig_circle };
             Object.assign(p_data, {
                 sub_type: "pile_anchor",
@@ -326,7 +343,9 @@ const calc_structural_compensation = (
                 Method: prefix + "桩锚联合",
                 FS: Number(((R_soil_unit + best_half_p_params.R + best_half_a_params.R) / T_unit).toFixed(3)),
                 Cost_W: cost,
-                Time_d: geo_time + best_half_p_params.time + best_half_a_params.time,
+                Time_d: total_time,
+                cost: cost,
+                schedule: Math.round(total_time),
                 Param: geo_param + `桩L=${best_half_p_params.L}m,@=${best_half_p_params.s}m\n锚Lb=${best_half_a_params.Lb}m,@=${best_half_a_params.s}m`,
                 Plot_Data: p_data
             });
@@ -363,6 +382,7 @@ export const eval_all_combinations_matrix = (geom: any, cfg: any, target_FS: num
         if (FS_c >= target_FS) {
             all_schemes.push({
                 Method: `纯削坡(1:${cut_ratio})`, FS: Number(FS_c.toFixed(3)), Cost_W: cost_c, Time_d: time_c,
+                cost: cost_c, schedule: Math.round(time_c),
                 Param: `挖方=${Math.floor(vol_c)}m³`, Plot_Data: plot_data_c
             });
         } else {
@@ -386,6 +406,7 @@ export const eval_all_combinations_matrix = (geom: any, cfg: any, target_FS: num
         if (FS_b >= target_FS) {
             all_schemes.push({
                 Method: `纯压重(${H_b}x${B_b}m)`, FS: Number(FS_b.toFixed(3)), Cost_W: cost_b, Time_d: time_b,
+                cost: cost_b, schedule: Math.round(time_b),
                 Param: `填方=${Math.floor(vol_b)}m³`, Plot_Data: plot_data_b
             });
         } else {

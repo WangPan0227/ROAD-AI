@@ -1,3 +1,8 @@
 import React from 'react';
-const HistoryLibrary: React.FC<any> = () => <div className="p-8">HistoryLibrary Placeholder</div>;
+import CaseKnowledgeLibrary from './common/CaseKnowledgeLibrary';
+
+const HistoryLibrary: React.FC<any> = (props) => {
+  return <CaseKnowledgeLibrary sector="road" scenario="slope_instability" {...props} />;
+};
+
 export default HistoryLibrary;
