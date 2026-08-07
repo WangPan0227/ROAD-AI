@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Activity, Settings, Rocket, Waves, Gauge, AlertTriangle } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { calculate_debris_flow_component_damage, DebrisFlowImpactParams } from '../../lib/bridgeCalculations';

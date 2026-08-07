@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Activity, Settings, Zap, Rocket, AlertTriangle } from 'lucide-react';
 import { calculate_girder_unseating, SeismicGirderParams } from '../../lib/bridgeCalculations';
 import { KPICard } from '../common/KPICard';
